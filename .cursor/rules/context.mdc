@@ -1,0 +1,146 @@
+---
+alwaysApply: true
+---
+
+# AI Podcast Assistant — Project Context (MDC)
+
+## Overview
+This project is an AI-powered Podcast Assistant built with:
+- **Next.js 15**
+- **Clerk** (Auth + Billing)
+- **Convex** (Database + Realtime)
+- **UploadThing** (File uploads)
+- **Inngest** (Background job orchestration)
+- **OpenAI Whisper & GPT** (Transcription + content generation)
+- **Cloudflare R2 or UploadThing storage** (for captions/transcripts)
+
+The system processes a podcast **audio or video** file and generates:
+- Summary
+- Key timestamps (clip opportunities)
+- Multi-platform social posts
+- Captions (SRT + raw)
+- Title suggestions
+- Hashtags
+- Full transcript
+
+No video clipping.  
+No thumbnail generation.
+
+---
+
+## User Flow
+
+User Upload  
+↓  
+UploadThing returns file URL  
+↓  
+Create Convex project record  
+↓  
+Trigger Inngest event (`podcast.uploaded`)  
+↓  
+**Inngest workflow processes file in two phases:**
+
+1. **Linear phase**
+   - Extract audio (if video)
+   - Transcribe audio
+
+2. **Parallel phase (fan-out) — all based on the transcript**
+   - Generate key moments (timestamps)
+   - Generate podcast summary
+   - Generate platform-optimized social posts
+   - Generate captions (SRT + text)
+   - Generate title suggestions
+   - Generate hashtags
+↓  
+Join results and save all outputs to Convex + storage  
+↓  
+Project status updated to `completed`  
+↓  
+User views results in dashboard
+
+---
+
+## Inngest Pipeline Steps (with Parallel Jobs)
+
+All steps should be implemented as `step.run` calls.  
+The **linear** steps must run sequentially; the **content-generation** steps should run in parallel after transcription.
+
+**Linear phase:**
+1. `extractAudioIfVideo`
+2. `transcribeAudio`
+
+**Parallel phase (run using `Promise.all` in the workflow):**
+3. `generateKeyMoments`  
+4. `generatePodcastSummary`  
+5. `generateCaptions` (.srt + raw transcript)  
+6. `generateSocialPosts` (Twitter, LinkedIn, IG Caption, TikTok, YouTube Description, Facebook)  
+7. `generateTitles` (short/long/podcast/SEO)  
+8. `generateHashtags` (per platform)
+
+**Join phase:**
+9. `saveResultsToConvex`
+
+Implementation detail: after `transcribeAudio`, the workflow should call `Promise.all([...step.run(...)])` so that all content-generation steps execute in parallel, then join their results and persist.
+
+---
+
+## Convex Data Model (Project Document)
+
+Each upload corresponds to a single **project** document. Parallel Inngest jobs populate its fields over time.
+
+```ts
+{
+  _id: Id<"projects">,
+  userId: string,
+  inputUrl: string,
+
+  // Overall project status
+  status: "uploaded" | "processing" | "completed" | "failed",
+
+  // Optional finer-grained job statuses if needed
+  jobStatus?: {
+    transcription?: "pending" | "running" | "completed" | "failed",
+    contentGeneration?: "pending" | "running" | "completed" | "failed"
+  },
+
+  transcript: any, // full transcript JSON
+
+  keyMoments: { time: string; text: string }[],
+
+  summary: {
+    full: string,
+    bullets: string[],
+    insights: string[],
+  },
+
+  captions: {
+    srtUrl: string,   // public or signed URL to .srt
+    rawText: string,  // plain text transcript for captions
+  },
+
+  socialPosts: {
+    twitter: string,
+    linkedin: string,
+    instagram: string,
+    youtube: string,
+    tiktok: string,
+    facebook: string
+  },
+
+  titles: {
+    youtubeShort: string[],
+    youtubeLong: string[],
+    podcastTitles: string[],
+    seoKeywords: string[]
+  },
+
+  hashtags: {
+    youtube: string[],
+    instagram: string[],
+    tiktok: string[],
+    linkedin: string[],
+    twitter: string[]
+  },
+
+  createdAt: number
+}
