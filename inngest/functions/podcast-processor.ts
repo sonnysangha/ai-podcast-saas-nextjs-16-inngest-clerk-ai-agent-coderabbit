@@ -7,6 +7,7 @@ import { generateSummary } from "../steps/ai-generation/summary";
 import { generateSocialPosts } from "../steps/ai-generation/social-posts";
 import { generateTitles } from "../steps/ai-generation/titles";
 import { generateHashtags } from "../steps/ai-generation/hashtags";
+import { generateYouTubeTimestamps } from "../steps/ai-generation/youtube-timestamps";
 import { saveResultsToConvex } from "../steps/persistence/save-to-convex";
 import { publishStepStart } from "../lib/realtime";
 
@@ -49,24 +50,33 @@ export const podcastProcessor = inngest.createFunction(
     // PARALLEL PHASE: AI Content Generation
     // =======================================================================
 
-    const [keyMoments, summary, socialPosts, titles, hashtags] =
-      await Promise.all([
-        step.run("generate-key-moments", () =>
-          generateKeyMoments(transcript, projectId, publish)
-        ),
-        step.run("generate-podcast-summary", () =>
-          generateSummary(transcript, projectId, publish)
-        ),
-        step.run("generate-social-posts", () =>
-          generateSocialPosts(transcript, projectId, publish)
-        ),
-        step.run("generate-titles", () =>
-          generateTitles(transcript, projectId, publish)
-        ),
-        step.run("generate-hashtags", () =>
-          generateHashtags(transcript, projectId, publish)
-        ),
-      ]);
+    const [
+      keyMoments,
+      summary,
+      socialPosts,
+      titles,
+      hashtags,
+      youtubeTimestamps,
+    ] = await Promise.all([
+      step.run("generate-key-moments", () =>
+        generateKeyMoments(transcript, projectId, publish)
+      ),
+      step.run("generate-podcast-summary", () =>
+        generateSummary(transcript, projectId, publish)
+      ),
+      step.run("generate-social-posts", () =>
+        generateSocialPosts(transcript, projectId, publish)
+      ),
+      step.run("generate-titles", () =>
+        generateTitles(transcript, projectId, publish)
+      ),
+      step.run("generate-hashtags", () =>
+        generateHashtags(transcript, projectId, publish)
+      ),
+      step.run("generate-youtube-timestamps", () =>
+        generateYouTubeTimestamps(transcript, projectId, publish)
+      ),
+    ]);
 
     // =======================================================================
     // JOIN PHASE: Save Results
@@ -75,7 +85,14 @@ export const podcastProcessor = inngest.createFunction(
     await step.run("save-results-to-convex", () =>
       saveResultsToConvex(
         projectId,
-        { keyMoments, summary, socialPosts, titles, hashtags },
+        {
+          keyMoments,
+          summary,
+          socialPosts,
+          titles,
+          hashtags,
+          youtubeTimestamps,
+        },
         publish
       )
     );

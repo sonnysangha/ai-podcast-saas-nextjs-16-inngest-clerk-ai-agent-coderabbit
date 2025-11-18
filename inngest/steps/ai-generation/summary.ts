@@ -81,7 +81,7 @@ export async function generateSummary(
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5-mini",
       messages: [
         { role: "system", content: SUMMARY_SYSTEM_PROMPT },
         { role: "user", content: buildSummaryPrompt(transcript) },
@@ -125,4 +125,3 @@ export async function generateSummary(
     };
   }
 }
-

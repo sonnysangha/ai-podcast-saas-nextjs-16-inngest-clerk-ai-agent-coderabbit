@@ -39,6 +39,7 @@ export const createProject = mutation({
         social: "pending",
         titles: "pending",
         hashtags: "pending",
+        youtubeTimestamps: "pending",
       },
       createdAt: now,
       updatedAt: now,
@@ -89,7 +90,8 @@ export const updateJobStatus = mutation({
       v.literal("captions"),
       v.literal("social"),
       v.literal("titles"),
-      v.literal("hashtags")
+      v.literal("hashtags"),
+      v.literal("youtubeTimestamps")
     ),
     status: v.union(
       v.literal("pending"),
@@ -212,6 +214,14 @@ export const saveGeneratedContent = mutation({
         linkedin: v.array(v.string()),
         twitter: v.array(v.string()),
       })
+    ),
+    youtubeTimestamps: v.optional(
+      v.array(
+        v.object({
+          timestamp: v.string(),
+          description: v.string(),
+        })
+      )
     ),
   },
   handler: async (ctx, args) => {

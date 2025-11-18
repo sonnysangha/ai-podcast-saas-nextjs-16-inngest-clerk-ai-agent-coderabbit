@@ -12,6 +12,7 @@ import { SocialPostsTab } from "@/components/project-tabs/social-posts-tab";
 import { HashtagsTab } from "@/components/project-tabs/hashtags-tab";
 import { TitlesTab } from "@/components/project-tabs/titles-tab";
 import { TranscriptTab } from "@/components/project-tabs/transcript-tab";
+import { YouTubeTimestampsTab } from "@/components/project-tabs/youtube-timestamps-tab";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
@@ -158,6 +159,12 @@ export default function ProjectDetailPage({
               <TabsTrigger value="moments" className="w-full md:w-auto">
                 Key Moments
               </TabsTrigger>
+              <TabsTrigger
+                value="youtube-timestamps"
+                className="w-full md:w-auto"
+              >
+                YouTube Timestamps
+              </TabsTrigger>
               <TabsTrigger value="social" className="w-full md:w-auto">
                 Social Posts
               </TabsTrigger>
@@ -181,6 +188,13 @@ export default function ProjectDetailPage({
             <TabsContent value="moments" className="space-y-4">
               {project.keyMoments && (
                 <KeyMomentsTab keyMoments={project.keyMoments} />
+              )}
+            </TabsContent>
+
+            {/* YouTube Timestamps Tab */}
+            <TabsContent value="youtube-timestamps" className="space-y-4">
+              {project.youtubeTimestamps && (
+                <YouTubeTimestampsTab timestamps={project.youtubeTimestamps} />
               )}
             </TabsContent>
 
@@ -216,4 +230,3 @@ export default function ProjectDetailPage({
     </div>
   );
 }
-

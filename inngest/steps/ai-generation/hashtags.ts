@@ -85,7 +85,7 @@ export async function generateHashtags(
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5-mini",
       messages: [
         { role: "system", content: HASHTAGS_SYSTEM_PROMPT },
         { role: "user", content: buildHashtagsPrompt(transcript) },

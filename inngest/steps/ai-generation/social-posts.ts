@@ -101,7 +101,7 @@ export async function generateSocialPosts(
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5-mini",
       messages: [
         { role: "system", content: SOCIAL_SYSTEM_PROMPT },
         { role: "user", content: buildSocialPrompt(transcript) },

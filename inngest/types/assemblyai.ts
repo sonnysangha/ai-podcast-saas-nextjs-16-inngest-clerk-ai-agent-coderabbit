@@ -48,4 +48,5 @@ export type TranscriptWithExtras = {
   segments: FormattedSegment[];
   chapters: AssemblyAIChapter[];
   utterances: AssemblyAIUtterance[];
+  audio_duration?: number; // Duration in milliseconds
 };

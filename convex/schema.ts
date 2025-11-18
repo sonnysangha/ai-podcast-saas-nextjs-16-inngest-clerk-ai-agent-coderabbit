@@ -68,6 +68,12 @@ export default defineSchema({
         v.literal("completed"),
         v.literal("failed")
       ),
+      youtubeTimestamps: v.union(
+        v.literal("pending"),
+        v.literal("running"),
+        v.literal("completed"),
+        v.literal("failed")
+      ),
     }),
 
     // Processing metrics
@@ -184,6 +190,15 @@ export default defineSchema({
         linkedin: v.array(v.string()),
         twitter: v.array(v.string()),
       })
+    ),
+
+    youtubeTimestamps: v.optional(
+      v.array(
+        v.object({
+          timestamp: v.string(), // "00:00" or "1:02:57"
+          description: v.string(),
+        })
+      )
     ),
 
     // Timestamps

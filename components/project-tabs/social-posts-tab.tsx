@@ -23,43 +23,43 @@ const PLATFORMS = [
     key: "twitter" as const, 
     title: "Twitter / X",
     url: "https://twitter.com",
-    bgColor: "bg-black/5 dark:bg-white/5",
-    hoverColor: "hover:bg-black/10 dark:hover:bg-white/10"
+    bgColor: "bg-black/5",
+    hoverColor: "hover:bg-black/10"
   },
   { 
     key: "linkedin" as const, 
     title: "LinkedIn",
     url: "https://linkedin.com",
-    bgColor: "bg-blue-50 dark:bg-blue-950/20",
-    hoverColor: "hover:bg-blue-100 dark:hover:bg-blue-950/30"
+    bgColor: "bg-blue-50",
+    hoverColor: "hover:bg-blue-100"
   },
   { 
     key: "instagram" as const, 
     title: "Instagram",
     url: "https://instagram.com",
-    bgColor: "bg-pink-50 dark:bg-pink-950/20",
-    hoverColor: "hover:bg-pink-100 dark:hover:bg-pink-950/30"
+    bgColor: "bg-pink-50",
+    hoverColor: "hover:bg-pink-100"
   },
   { 
     key: "tiktok" as const, 
     title: "TikTok",
     url: "https://tiktok.com",
-    bgColor: "bg-slate-50 dark:bg-slate-950/20",
-    hoverColor: "hover:bg-slate-100 dark:hover:bg-slate-950/30"
+    bgColor: "bg-slate-50",
+    hoverColor: "hover:bg-slate-100"
   },
   { 
     key: "youtube" as const, 
     title: "YouTube",
     url: "https://youtube.com",
-    bgColor: "bg-red-50 dark:bg-red-950/20",
-    hoverColor: "hover:bg-red-100 dark:hover:bg-red-950/30"
+    bgColor: "bg-red-50",
+    hoverColor: "hover:bg-red-100"
   },
   { 
     key: "facebook" as const, 
     title: "Facebook",
     url: "https://facebook.com",
-    bgColor: "bg-blue-50 dark:bg-blue-950/20",
-    hoverColor: "hover:bg-blue-100 dark:hover:bg-blue-950/30"
+    bgColor: "bg-blue-50",
+    hoverColor: "hover:bg-blue-100"
   },
 ];
 
@@ -117,7 +117,7 @@ export function SocialPostsTab({ socialPosts }: SocialPostsTabProps) {
 
             {/* Post Content */}
             <div className="relative">
-              <div className="rounded-lg bg-white dark:bg-slate-900 p-4 text-sm border">
+              <div className="rounded-lg bg-white p-4 text-sm border">
                 <p className="whitespace-pre-wrap leading-relaxed">
                   {socialPosts[platform.key]}
                 </p>

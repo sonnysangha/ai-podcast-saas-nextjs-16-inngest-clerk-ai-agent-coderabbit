@@ -68,6 +68,7 @@ export async function transcribeWithAssemblyAI(
       chapters: AssemblyAIChapter[];
       utterances: AssemblyAIUtterance[];
       words: AssemblyAIWord[];
+      audio_duration?: number; // Duration in milliseconds
     };
 
     console.log(
@@ -101,13 +102,15 @@ export async function transcribeWithAssemblyAI(
     };
 
     // Transform speaker utterances
-    const speakers = assemblyUtterances.map((utterance: AssemblyAIUtterance) => ({
-      speaker: utterance.speaker,
-      start: utterance.start / 1000,
-      end: utterance.end / 1000,
-      text: utterance.text,
-      confidence: utterance.confidence,
-    }));
+    const speakers = assemblyUtterances.map(
+      (utterance: AssemblyAIUtterance) => ({
+        speaker: utterance.speaker,
+        start: utterance.start / 1000,
+        end: utterance.end / 1000,
+        text: utterance.text,
+        confidence: utterance.confidence,
+      })
+    );
 
     // Save transcript with speaker info to Convex
     await convex.mutation(api.projects.saveTranscript, {
@@ -143,6 +146,7 @@ export async function transcribeWithAssemblyAI(
       segments: formattedSegments,
       chapters: assemblyChapters,
       utterances: assemblyUtterances,
+      audio_duration: response.audio_duration, // Include audio duration
     };
   } catch (error) {
     console.error("AssemblyAI transcription error:", error);
@@ -162,4 +166,3 @@ export async function transcribeWithAssemblyAI(
     throw error;
   }
 }
-

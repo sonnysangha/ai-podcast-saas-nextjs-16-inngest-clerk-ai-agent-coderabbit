@@ -16,6 +16,7 @@ import {
   Type,
   Hash,
   Clock,
+  Youtube,
 } from "lucide-react";
 import {
   estimateAssemblyAITime,
@@ -101,6 +102,12 @@ export function ProcessingFlow({
       status: jobStatus.hashtags,
       icon: Hash,
     },
+    {
+      key: "youtubeTimestamps",
+      label: "YouTube Timestamps",
+      status: jobStatus.youtubeTimestamps,
+      icon: Youtube,
+    },
   ];
 
   return (
@@ -110,7 +117,7 @@ export function ProcessingFlow({
         className={cn(
           "border-2 transition-all",
           isTranscribing && "border-green-500 shadow-lg",
-          transcriptionComplete && "border-gray-300 dark:border-gray-700",
+          transcriptionComplete && "border-gray-300",
           transcriptionFailed && "border-destructive",
         )}
       >
@@ -168,8 +175,8 @@ export function ProcessingFlow({
 
             {/* Completion message */}
             {transcriptionComplete && (
-              <div className="bg-green-50 dark:bg-green-950 rounded-lg p-4 text-center">
-                <p className="text-green-700 dark:text-green-300 font-medium">
+              <div className="bg-green-50 rounded-lg p-4 text-center">
+                <p className="text-green-700 font-medium">
                   ✓ Transcription complete! Now generating content...
                 </p>
               </div>
@@ -235,9 +242,9 @@ export function ProcessingFlow({
                         !transcriptionComplete &&
                           "opacity-40 cursor-not-allowed",
                         step.status === "running" &&
-                          "border-green-500 bg-green-50 dark:bg-green-950",
+                          "border-green-500 bg-green-50",
                         step.status === "completed" &&
-                          "border-green-500 bg-green-50 dark:bg-green-950",
+                          "border-green-500 bg-green-50",
                       )}
                     >
                       <div className="flex items-center justify-between mb-2">

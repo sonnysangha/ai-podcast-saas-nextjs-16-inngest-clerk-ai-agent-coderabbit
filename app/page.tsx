@@ -4,7 +4,7 @@ import { FeaturesSection } from "@/components/home/features-section";
 import { CtaSection } from "@/components/home/cta-section";
 import { Footer } from "@/components/home/footer";
 
-export default async function Home() {
+export default function Home() {
   return (
     <div className="min-h-screen">
       <Header />

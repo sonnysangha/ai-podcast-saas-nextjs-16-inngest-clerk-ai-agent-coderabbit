@@ -44,7 +44,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
         className={cn(
           "group relative hover:shadow-lg transition-all cursor-pointer overflow-hidden hover:scale-[1.005]",
           project.status === "processing" &&
-            "border-l-4 border-l-green-500 bg-green-50/30 dark:bg-green-950/20",
+            "border-l-4 border-l-green-500 bg-green-50/30",
           project.status === "failed" && "border-l-4 border-l-destructive",
         )}
       >

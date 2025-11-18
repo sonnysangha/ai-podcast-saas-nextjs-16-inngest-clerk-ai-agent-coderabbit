@@ -83,7 +83,7 @@ export async function generateTitles(
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5-mini",
       messages: [
         { role: "system", content: TITLES_SYSTEM_PROMPT },
         { role: "user", content: buildTitlesPrompt(transcript) },

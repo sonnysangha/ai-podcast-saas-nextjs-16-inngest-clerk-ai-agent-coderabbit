@@ -16,12 +16,18 @@ type KeyMoment = {
   description: string;
 };
 
+type YouTubeTimestamp = {
+  timestamp: string;
+  description: string;
+};
+
 type GeneratedContent = {
   keyMoments: KeyMoment[];
   summary: Summary;
   socialPosts: SocialPosts;
   titles: Titles;
   hashtags: Hashtags;
+  youtubeTimestamps: YouTubeTimestamp[];
 };
 
 export async function saveResultsToConvex(
@@ -36,6 +42,7 @@ export async function saveResultsToConvex(
     socialPosts: results.socialPosts,
     titles: results.titles,
     hashtags: results.hashtags,
+    youtubeTimestamps: results.youtubeTimestamps,
   });
 
   // Update project status to completed
@@ -55,4 +62,3 @@ export async function saveResultsToConvex(
 
   console.log("Podcast processing completed for project:", projectId);
 }
-
