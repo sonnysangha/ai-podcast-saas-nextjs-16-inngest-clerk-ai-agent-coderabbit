@@ -1,9 +1,7 @@
-import type { Id } from "@/convex/_generated/dataModel";
 import type { TranscriptWithExtras } from "../../types/assemblyai";
 import { hashtagsSchema, type Hashtags } from "../../schemas/ai-outputs";
 import { zodResponseFormat } from "openai/helpers/zod";
 import type { step as InngestStep } from "inngest";
-import type { PublishFunction } from "../../lib/realtime";
 import { openai } from "../../lib/openai-client";
 import type OpenAI from "openai";
 
@@ -57,23 +55,8 @@ All hashtags should include the # symbol and be relevant to the actual content d
 
 export async function generateHashtags(
   step: typeof InngestStep,
-  transcript: TranscriptWithExtras,
-  projectId: Id<"projects">,
-  publish: PublishFunction
+  transcript: TranscriptWithExtras
 ): Promise<Hashtags> {
-  // Publish start as a tracked step
-  await step.run("hashtags:publish-start", async () => {
-    await publish({
-      channel: `project:${projectId}`,
-      topic: "ai-generation:hashtags:start",
-      data: {
-        job: "hashtags",
-        status: "running",
-        message: "Generating hashtags...",
-      },
-    });
-  });
-
   console.log("Generating hashtags with GPT");
 
   try {
@@ -105,19 +88,6 @@ export async function generateHashtags(
           linkedin: ["#Podcast"],
           twitter: ["#Podcast"],
         };
-
-    // Publish complete as a tracked step
-    await step.run("hashtags:publish-complete", async () => {
-      await publish({
-        channel: `project:${projectId}`,
-        topic: "ai-generation:hashtags:complete",
-        data: {
-          job: "hashtags",
-          status: "completed",
-          message: "Hashtags generated!",
-        },
-      });
-    });
 
     return hashtags;
   } catch (error) {

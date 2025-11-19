@@ -21,13 +21,14 @@ export function CompactProgress({
 
   const isTranscribing = jobStatus.transcription === "running";
 
-  // Count completed content generation steps
+  // Count completed content generation steps (all 6 outputs)
   const contentSteps = [
     jobStatus.keyMoments,
     jobStatus.summary,
     jobStatus.social,
     jobStatus.titles,
     jobStatus.hashtags,
+    jobStatus.youtubeTimestamps,
   ];
   const completedSteps = contentSteps.filter((s) => s === "completed").length;
   const totalSteps = contentSteps.length;
@@ -55,7 +56,7 @@ export function CompactProgress({
 
   const statusText = isTranscribing
     ? "🎙️ Transcribing..."
-    : `✨ Generating content... ${completedSteps}/${totalSteps}`;
+    : "✨ Generating content...";
 
   return (
     <div className="space-y-2">

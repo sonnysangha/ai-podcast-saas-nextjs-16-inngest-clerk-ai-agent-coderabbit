@@ -1,9 +1,7 @@
-import type { Id } from "@/convex/_generated/dataModel";
 import type { TranscriptWithExtras } from "../../types/assemblyai";
 import { titlesSchema, type Titles } from "../../schemas/ai-outputs";
 import { zodResponseFormat } from "openai/helpers/zod";
 import type { step as InngestStep } from "inngest";
-import type { PublishFunction } from "../../lib/realtime";
 import { openai } from "../../lib/openai-client";
 import type OpenAI from "openai";
 
@@ -55,23 +53,8 @@ Make titles compelling, accurate, and optimized for discovery.`;
 
 export async function generateTitles(
   step: typeof InngestStep,
-  transcript: TranscriptWithExtras,
-  projectId: Id<"projects">,
-  publish: PublishFunction
+  transcript: TranscriptWithExtras
 ): Promise<Titles> {
-  // Publish start as a tracked step
-  await step.run("titles:publish-start", async () => {
-    await publish({
-      channel: `project:${projectId}`,
-      topic: "ai-generation:titles:start",
-      data: {
-        job: "titles",
-        status: "running",
-        message: "Generating titles...",
-      },
-    });
-  });
-
   console.log("Generating title suggestions with GPT-4");
 
   try {
@@ -102,19 +85,6 @@ export async function generateTitles(
           podcastTitles: ["New Episode"],
           seoKeywords: ["podcast"],
         };
-
-    // Publish complete as a tracked step
-    await step.run("titles:publish-complete", async () => {
-      await publish({
-        channel: `project:${projectId}`,
-        topic: "ai-generation:titles:complete",
-        data: {
-          job: "titles",
-          status: "completed",
-          message: "Titles generated!",
-        },
-      });
-    });
 
     return titles;
   } catch (error) {

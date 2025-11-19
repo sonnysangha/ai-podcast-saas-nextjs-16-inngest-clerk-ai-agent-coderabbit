@@ -7,47 +7,83 @@ import { Progress } from "@/components/ui/progress";
 import {
   CheckCircle2,
   Loader2,
-  XCircle,
   ChevronDown,
   FileText,
   Sparkles,
-  MessageSquare,
-  Share2,
-  Type,
-  Hash,
   Clock,
+  Hash,
+  MessageSquare,
+  Heading,
   Youtube,
+  Target,
+  FileSignature,
 } from "lucide-react";
 import {
   estimateAssemblyAITime,
   formatTimeRange,
 } from "@/lib/processing-time-estimator";
-import type { Doc } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
 
+type PhaseStatus = "pending" | "running" | "completed";
+
 interface ProcessingFlowProps {
-  jobStatus: Doc<"projects">["jobStatus"];
+  transcriptionStatus: PhaseStatus;
+  generationStatus: PhaseStatus;
   fileDuration?: number;
   createdAt: number;
-  jobStatuses?: Record<
-    string,
-    {
-      status: "pending" | "running" | "completed";
-      message: string;
-    }
-  >;
 }
 
+// Generation outputs with descriptions
+const GENERATION_OUTPUTS = [
+  {
+    name: "Summary",
+    icon: FileSignature,
+    description:
+      "Creating comprehensive podcast summary with key insights and takeaways",
+  },
+  {
+    name: "Key Moments",
+    icon: Target,
+    description:
+      "Identifying important timestamps, highlights, and memorable quotes",
+  },
+  {
+    name: "Social Posts",
+    icon: MessageSquare,
+    description:
+      "Crafting platform-optimized posts for Twitter, LinkedIn, Instagram, TikTok, YouTube, and Facebook",
+  },
+  {
+    name: "Titles",
+    icon: Heading,
+    description:
+      "Generating engaging SEO-optimized titles and keywords for maximum reach",
+  },
+  {
+    name: "Hashtags",
+    icon: Hash,
+    description:
+      "Creating trending platform-specific hashtag strategies for better discoverability",
+  },
+  {
+    name: "YouTube Timestamps",
+    icon: Youtube,
+    description:
+      "Formatting clickable chapter markers for YouTube video descriptions",
+  },
+];
+
 export function ProcessingFlow({
-  jobStatus,
+  transcriptionStatus,
+  generationStatus,
   fileDuration,
   createdAt,
-  jobStatuses,
 }: ProcessingFlowProps) {
-  const transcriptionStatus = jobStatus.transcription;
   const isTranscribing = transcriptionStatus === "running";
   const transcriptionComplete = transcriptionStatus === "completed";
-  const transcriptionFailed = transcriptionStatus === "failed";
+
+  const isGenerating = generationStatus === "running";
+  const generationComplete = generationStatus === "completed";
 
   // Get real time estimates based on audio duration
   const timeEstimate = estimateAssemblyAITime(fileDuration);
@@ -58,6 +94,9 @@ export function ProcessingFlow({
 
   // Track progress based on elapsed time vs conservative estimate
   const [transcriptionProgress, setTranscriptionProgress] = useState(0);
+
+  // Cycle through generation outputs to show what's being worked on
+  const [currentOutputIndex, setCurrentOutputIndex] = useState(0);
 
   useEffect(() => {
     if (!isTranscribing) {
@@ -82,67 +121,46 @@ export function ProcessingFlow({
     return () => clearInterval(interval);
   }, [isTranscribing, createdAt, timeEstimate.conservative]);
 
-  const parallelSteps = [
-    {
-      key: "keyMoments",
-      label: "Key Moments",
-      status: jobStatus.keyMoments,
-      icon: Sparkles,
-    },
-    {
-      key: "summary",
-      label: "Summary",
-      status: jobStatus.summary,
-      icon: MessageSquare,
-    },
-    {
-      key: "social",
-      label: "Social Posts",
-      status: jobStatus.social || "pending",
-      icon: Share2,
-    },
-    { key: "titles", label: "Titles", status: jobStatus.titles, icon: Type },
-    {
-      key: "hashtags",
-      label: "Hashtags",
-      status: jobStatus.hashtags,
-      icon: Hash,
-    },
-    {
-      key: "youtubeTimestamps",
-      label: "YouTube Timestamps",
-      status: jobStatus.youtubeTimestamps,
-      icon: Youtube,
-    },
-  ];
+  // Cycle through outputs every 4 seconds during generation
+  useEffect(() => {
+    if (!isGenerating) {
+      setCurrentOutputIndex(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setCurrentOutputIndex((prev) => (prev + 1) % GENERATION_OUTPUTS.length);
+    }, 4000); // 4 seconds per step
+
+    return () => clearInterval(interval);
+  }, [isGenerating]);
 
   return (
-    <div className="space-y-8">
-      {/* HERO: Transcription Section */}
+    <div className="space-y-6">
+      {/* Phase 1: Transcription */}
       <Card
         className={cn(
           "border-2 transition-all",
-          isTranscribing && "border-green-500 shadow-lg",
-          transcriptionComplete && "border-gray-300",
-          transcriptionFailed && "border-destructive",
+          isTranscribing && "border-primary shadow-lg",
+          transcriptionComplete && "border-green-500",
         )}
       >
-        <CardContent className="pt-8 pb-8">
-          <div className="space-y-6">
+        <CardContent className="pt-6 pb-6">
+          <div className="space-y-4">
             {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="rounded-full bg-primary/10 p-4">
-                  <FileText className="h-8 w-8 text-primary" />
+                <div className="rounded-full bg-primary/10 p-3">
+                  <FileText className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold">Transcription</h3>
-                  <p className="text-muted-foreground">
-                    {isTranscribing && "AI is transcribing your audio..."}
+                  <h3 className="text-xl font-bold">Phase 1: Transcription</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {isTranscribing &&
+                      "Converting audio to text with AssemblyAI..."}
                     {transcriptionComplete && "Transcription complete!"}
-                    {transcriptionFailed && "Transcription failed"}
                     {transcriptionStatus === "pending" &&
-                      "Preparing to transcribe..."}
+                      "Preparing transcription..."}
                   </p>
                 </div>
               </div>
@@ -150,50 +168,25 @@ export function ProcessingFlow({
               {/* Status Icon */}
               <div>
                 {isTranscribing && (
-                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 )}
                 {transcriptionComplete && (
-                  <CheckCircle2 className="h-10 w-10 text-green-500" />
-                )}
-                {transcriptionFailed && (
-                  <XCircle className="h-10 w-10 text-destructive" />
+                  <CheckCircle2 className="h-8 w-8 text-green-500" />
                 )}
               </div>
             </div>
 
-            {/* Processing message (when running) */}
+            {/* Progress (when running) */}
             {isTranscribing && (
               <div className="space-y-3">
                 <Progress value={transcriptionProgress} className="h-2" />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
-                    <span>Estimated time: {timeRangeText}</span>
+                    <span>Estimated: {timeRangeText}</span>
                   </div>
                   <span>{Math.round(transcriptionProgress)}%</span>
                 </div>
-                <p className="text-sm text-muted-foreground text-center">
-                  You can leave this page and come back later. We'll keep
-                  processing in the background.
-                </p>
-              </div>
-            )}
-
-            {/* Completion message */}
-            {transcriptionComplete && (
-              <div className="bg-green-50 rounded-lg p-4 text-center">
-                <p className="text-green-700 font-medium">
-                  ✓ Transcription complete! Now generating content...
-                </p>
-              </div>
-            )}
-
-            {/* Failed message */}
-            {transcriptionFailed && (
-              <div className="bg-destructive/10 rounded-lg p-4 text-center">
-                <p className="text-destructive font-medium">
-                  ✗ Transcription failed. Please try again.
-                </p>
               </div>
             )}
           </div>
@@ -209,101 +202,148 @@ export function ProcessingFlow({
         </div>
       </div>
 
-      {/* Parallel Steps Section */}
+      {/* Phase 2: AI Generation */}
       <Card
         className={cn(
           "border-2 transition-all",
           !transcriptionComplete && "opacity-50",
-          transcriptionComplete && "border-green-500 shadow-lg",
+          isGenerating && "border-primary shadow-lg",
+          generationComplete && "border-green-500",
         )}
       >
         <CardContent className="pt-6 pb-6">
           <div className="space-y-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Content Generation</h3>
-              <Badge variant={transcriptionComplete ? "default" : "outline"}>
-                {transcriptionComplete ? "In Progress" : "Waiting"}
-              </Badge>
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="rounded-full bg-primary/10 p-3">
+                  <Sparkles className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold">Phase 2: AI Generation</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {!transcriptionComplete && "Waiting for transcription..."}
+                    {isGenerating && "Generating 6 AI outputs in parallel..."}
+                    {generationComplete && "All content generated!"}
+                    {transcriptionComplete &&
+                      generationStatus === "pending" &&
+                      "Starting generation..."}
+                  </p>
+                </div>
+              </div>
+
+              {/* Status Icon */}
+              <div>
+                {isGenerating && (
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                )}
+                {generationComplete && (
+                  <CheckCircle2 className="h-8 w-8 text-green-500" />
+                )}
+              </div>
             </div>
 
-            {!transcriptionComplete && (
-              <p className="text-sm text-muted-foreground mb-6">
-                These steps will start automatically after transcription
-                completes
-              </p>
-            )}
+            {/* Cycling outputs while generating - All visible with spinners */}
+            {isGenerating && (
+              <div className="space-y-3 pt-2">
+                {GENERATION_OUTPUTS.map((output, idx) => {
+                  const Icon = output.icon;
+                  const isActive = idx === currentOutputIndex;
 
-            {/* Parallel Steps Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {parallelSteps.map((step) => {
-                const Icon = step.icon;
-                // Use granular job status if available, otherwise fall back to jobStatus
-                const realtimeJobStatus = jobStatuses?.[step.key];
-                const currentStatus = realtimeJobStatus?.status || step.status;
-                const currentMessage = realtimeJobStatus?.message;
-                const hasRealtimeUpdate =
-                  !!realtimeJobStatus && !!currentMessage;
-
-                return (
-                  <div key={step.key} className="space-y-2">
+                  return (
                     <div
+                      key={output.name}
                       className={cn(
-                        "rounded-lg border p-4 transition-all",
-                        !transcriptionComplete &&
-                          "opacity-40 cursor-not-allowed",
-                        currentStatus === "running" &&
-                          "border-green-500 bg-green-50",
-                        currentStatus === "completed" &&
-                          "border-green-500 bg-green-50",
+                        "border rounded-lg transition-all duration-700 ease-in-out",
+                        isActive
+                          ? "bg-primary/5 border-primary shadow-md scale-[1.02]"
+                          : "bg-muted/20 border-muted/40 opacity-40 scale-100",
                       )}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <Icon className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">
-                            {step.label}
-                          </span>
+                      <div className="p-4">
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={cn(
+                              "rounded-full p-2.5 transition-all duration-500",
+                              isActive
+                                ? "bg-primary/10 ring-2 ring-primary/20"
+                                : "bg-muted/50",
+                            )}
+                          >
+                            <Icon
+                              className={cn(
+                                "h-5 w-5 transition-all duration-500",
+                                isActive
+                                  ? "text-primary"
+                                  : "text-muted-foreground/60",
+                              )}
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h4
+                                className={cn(
+                                  "font-semibold text-sm transition-all duration-500",
+                                  isActive
+                                    ? "text-primary"
+                                    : "text-foreground/60",
+                                )}
+                              >
+                                {output.name}
+                              </h4>
+                              <Loader2
+                                className={cn(
+                                  "h-4 w-4 animate-spin transition-all duration-500",
+                                  isActive
+                                    ? "text-primary opacity-100"
+                                    : "text-muted-foreground/40 opacity-50",
+                                )}
+                              />
+                            </div>
+                            <p
+                              className={cn(
+                                "text-sm transition-all duration-500",
+                                isActive
+                                  ? "text-muted-foreground opacity-100"
+                                  : "text-muted-foreground/50 opacity-60",
+                              )}
+                            >
+                              {output.description}
+                            </p>
+                          </div>
                         </div>
-                        {currentStatus === "running" && (
-                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                        )}
-                        {currentStatus === "completed" && (
-                          <CheckCircle2 className="h-4 w-4 text-green-500" />
-                        )}
-                        {currentStatus === "pending" && (
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                        )}
                       </div>
-                      <Badge
-                        variant={
-                          currentStatus === "completed" ? "default" : "outline"
-                        }
-                        className="text-xs"
-                      >
-                        {currentStatus === "pending"
-                          ? "Waiting"
-                          : currentStatus}
-                      </Badge>
                     </div>
+                  );
+                })}
 
-                    {/* Realtime Update Message - show for running and completed */}
-                    {hasRealtimeUpdate && (
-                      <div
-                        className={cn(
-                          "text-xs italic flex items-center gap-1 px-2",
-                          currentStatus === "running" &&
-                            "text-primary/80 animate-pulse",
-                          currentStatus === "completed" && "text-green-600/80",
-                        )}
-                      >
-                        <span>{currentStatus === "running" ? "✨" : "✓"}</span>
-                        <span>{currentMessage}</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                {/* Info text */}
+                <div className="bg-linear-to-r from-primary/5 to-primary/10 rounded-lg p-4 text-center mt-4 border border-primary/20">
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-semibold text-primary">
+                      Powered by Inngest
+                    </span>{" "}
+                    — AI is generating all {GENERATION_OUTPUTS.length} outputs
+                    simultaneously
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Completed state - show all badges */}
+            {generationComplete && (
+              <div className="flex flex-wrap items-center gap-2 pt-2">
+                {GENERATION_OUTPUTS.map((output) => (
+                  <Badge
+                    key={output.name}
+                    variant="default"
+                    className="text-xs"
+                  >
+                    {output.name}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

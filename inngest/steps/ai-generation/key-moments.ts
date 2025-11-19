@@ -1,7 +1,5 @@
-import type { Id } from "@/convex/_generated/dataModel";
 import type { TranscriptWithExtras } from "../../types/assemblyai";
 import type { step as InngestStep } from "inngest";
-import type { PublishFunction } from "../../lib/realtime";
 
 type KeyMoment = {
   time: string;
@@ -11,24 +9,9 @@ type KeyMoment = {
 };
 
 export async function generateKeyMoments(
-  step: typeof InngestStep,
-  transcript: TranscriptWithExtras,
-  projectId: Id<"projects">,
-  publish: PublishFunction
+  _step: typeof InngestStep,
+  transcript: TranscriptWithExtras
 ): Promise<KeyMoment[]> {
-  // Publish start as a tracked step
-  await step.run("key-moments:publish-start", async () => {
-    await publish({
-      channel: `project:${projectId}`,
-      topic: "ai-generation:keyMoments:start",
-      data: {
-        job: "keyMoments",
-        status: "running",
-        message: "Extracting key moments...",
-      },
-    });
-  });
-
   console.log("Generating key moments from AssemblyAI chapters");
 
   // Use AssemblyAI's auto-generated chapters
@@ -50,19 +33,6 @@ export async function generateKeyMoments(
       text: chapter.headline,
       description: chapter.summary,
     };
-  });
-
-  // Publish complete as a tracked step
-  await step.run("key-moments:publish-complete", async () => {
-    await publish({
-      channel: `project:${projectId}`,
-      topic: "ai-generation:keyMoments:complete",
-      data: {
-        job: "keyMoments",
-        status: "completed",
-        message: "Key moments extracted!",
-      },
-    });
   });
 
   return keyMoments;

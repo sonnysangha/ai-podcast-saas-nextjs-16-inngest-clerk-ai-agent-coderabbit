@@ -1,9 +1,7 @@
-import type { Id } from "@/convex/_generated/dataModel";
 import type { TranscriptWithExtras } from "../../types/assemblyai";
 import { summarySchema, type Summary } from "../../schemas/ai-outputs";
 import { zodResponseFormat } from "openai/helpers/zod";
 import type { step as InngestStep } from "inngest";
-import type { PublishFunction } from "../../lib/realtime";
 import { openai } from "../../lib/openai-client";
 import type OpenAI from "openai";
 
@@ -53,23 +51,8 @@ Be specific, engaging, and valuable. Focus on what makes this podcast unique and
 
 export async function generateSummary(
   step: typeof InngestStep,
-  transcript: TranscriptWithExtras,
-  projectId: Id<"projects">,
-  publish: PublishFunction
+  transcript: TranscriptWithExtras
 ): Promise<Summary> {
-  // Publish start as a tracked step
-  await step.run("summary:publish-start", async () => {
-    await publish({
-      channel: `project:${projectId}`,
-      topic: "ai-generation:summary:start",
-      data: {
-        job: "summary",
-        status: "running",
-        message: "Generating summary...",
-      },
-    });
-  });
-
   console.log("Generating podcast summary with GPT-4");
 
   try {
@@ -100,19 +83,6 @@ export async function generateSummary(
           insights: ["See transcript"],
           tldr: transcript.text.substring(0, 200),
         };
-
-    // Publish complete as a tracked step
-    await step.run("summary:publish-complete", async () => {
-      await publish({
-        channel: `project:${projectId}`,
-        topic: "ai-generation:summary:complete",
-        data: {
-          job: "summary",
-          status: "completed",
-          message: "Summary generated!",
-        },
-      });
-    });
 
     return summary;
   } catch (error) {

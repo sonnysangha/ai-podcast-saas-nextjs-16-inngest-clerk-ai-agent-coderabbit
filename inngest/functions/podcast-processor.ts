@@ -9,6 +9,7 @@ import { generateTitles } from "../steps/ai-generation/titles";
 import { generateHashtags } from "../steps/ai-generation/hashtags";
 import { generateYouTubeTimestamps } from "../steps/ai-generation/youtube-timestamps";
 import { saveResultsToConvex } from "../steps/persistence/save-to-convex";
+import { REALTIME_TOPICS } from "../lib/realtime-topics";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
 
@@ -30,30 +31,37 @@ export const podcastProcessor = inngest.createFunction(
         projectId,
         status: "processing",
       });
-
-      await publish({
-        channel: `project:${projectId}`,
-        topic: "processing:start",
-        data: {
-          message: "Starting podcast processing...",
-          progress: 0,
-        },
-      });
     });
 
     // =======================================================================
-    // LINEAR PHASE: Transcription
+    // PHASE 1: Transcription
     // =======================================================================
+
+    await publish({
+      channel: `project:${projectId}`,
+      topic: REALTIME_TOPICS.TRANSCRIPTION_START,
+      data: { message: "Starting transcription..." },
+    });
 
     const transcript = await step.run("transcribe-audio", () =>
       transcribeWithAssemblyAI(fileUrl, projectId, publish)
     );
 
+    await publish({
+      channel: `project:${projectId}`,
+      topic: REALTIME_TOPICS.TRANSCRIPTION_DONE,
+      data: { message: "Transcription complete!" },
+    });
+
     // =======================================================================
-    // PARALLEL PHASE: AI Content Generation
+    // PHASE 2: AI Content Generation (6 outputs in parallel)
     // =======================================================================
-    // Each function uses step.ai.wrap() internally and publishes realtime updates
-    // We call them directly (not wrapped in step.run) to avoid nesting
+
+    await publish({
+      channel: `project:${projectId}`,
+      topic: REALTIME_TOPICS.GENERATION_START,
+      data: { message: "Generating AI content (6 outputs)..." },
+    });
 
     const [
       keyMoments,
@@ -63,16 +71,22 @@ export const podcastProcessor = inngest.createFunction(
       hashtags,
       youtubeTimestamps,
     ] = await Promise.all([
-      generateKeyMoments(step, transcript, projectId, publish),
-      generateSummary(step, transcript, projectId, publish),
-      generateSocialPosts(step, transcript, projectId, publish),
-      generateTitles(step, transcript, projectId, publish),
-      generateHashtags(step, transcript, projectId, publish),
-      generateYouTubeTimestamps(step, transcript, projectId, publish),
+      generateKeyMoments(step, transcript),
+      generateSummary(step, transcript),
+      generateSocialPosts(step, transcript),
+      generateTitles(step, transcript),
+      generateHashtags(step, transcript),
+      generateYouTubeTimestamps(step, transcript),
     ]);
 
+    await publish({
+      channel: `project:${projectId}`,
+      topic: REALTIME_TOPICS.GENERATION_DONE,
+      data: { message: "All AI content generated!" },
+    });
+
     // =======================================================================
-    // JOIN PHASE: Save Results
+    // SAVE RESULTS
     // =======================================================================
 
     await step.run("save-results-to-convex", () =>

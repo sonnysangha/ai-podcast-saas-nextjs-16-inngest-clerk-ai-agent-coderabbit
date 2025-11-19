@@ -33,9 +33,12 @@ export function ProjectCard({ project }: ProjectCardProps) {
       project.jobStatus.social,
       project.jobStatus.titles,
       project.jobStatus.hashtags,
+      project.jobStatus.youtubeTimestamps,
     ];
     const completedSteps = contentSteps.filter((s) => s === "completed").length;
-    return `Generating ${completedSteps}/5`;
+    
+    // Just say "Generating" without the count
+    return "Generating";
   };
 
   return (

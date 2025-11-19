@@ -1,9 +1,7 @@
-import type { Id } from "@/convex/_generated/dataModel";
 import type { TranscriptWithExtras } from "../../types/assemblyai";
 import { socialPostsSchema, type SocialPosts } from "../../schemas/ai-outputs";
 import { zodResponseFormat } from "openai/helpers/zod";
 import type { step as InngestStep } from "inngest";
-import type { PublishFunction } from "../../lib/realtime";
 import { openai } from "../../lib/openai-client";
 import type OpenAI from "openai";
 
@@ -26,12 +24,13 @@ ${
 
 Create 6 unique posts optimized for each platform:
 
-1. TWITTER/X (max 280 characters):
+1. TWITTER/X (MAXIMUM 280 characters - STRICT LIMIT):
    - Start with a hook that stops scrolling
    - Include the main value proposition or insight
    - Make it thread-worthy
    - Conversational, punchy tone
    - Can include emojis but use sparingly
+   - **CRITICAL: Must be 280 characters or less, including spaces and emojis**
 
 2. LINKEDIN (1-2 paragraphs):
    - Professional, thought-leadership tone
@@ -73,23 +72,8 @@ Make each post unique and truly optimized for that platform. No generic content.
 
 export async function generateSocialPosts(
   step: typeof InngestStep,
-  transcript: TranscriptWithExtras,
-  projectId: Id<"projects">,
-  publish: PublishFunction
+  transcript: TranscriptWithExtras
 ): Promise<SocialPosts> {
-  // Publish start as a tracked step
-  await step.run("social:publish-start", async () => {
-    await publish({
-      channel: `project:${projectId}`,
-      topic: "ai-generation:social:start",
-      data: {
-        job: "social",
-        status: "running",
-        message: "Generating social posts...",
-      },
-    });
-  });
-
   console.log("Generating social posts with GPT-4");
 
   try {
@@ -112,7 +96,7 @@ export async function generateSocialPosts(
     )) as OpenAI.Chat.Completions.ChatCompletion;
 
     const content = response.choices[0]?.message?.content;
-    const socialPosts = content
+    let socialPosts = content
       ? socialPostsSchema.parse(JSON.parse(content))
       : {
           twitter: "New podcast episode!",
@@ -123,18 +107,13 @@ export async function generateSocialPosts(
           facebook: "New podcast available!",
         };
 
-    // Publish complete as a tracked step
-    await step.run("social:publish-complete", async () => {
-      await publish({
-        channel: `project:${projectId}`,
-        topic: "ai-generation:social:complete",
-        data: {
-          job: "social",
-          status: "completed",
-          message: "Social posts generated!",
-        },
-      });
-    });
+    // Safety check: Truncate Twitter post if it somehow exceeds 280 chars
+    if (socialPosts.twitter.length > 280) {
+      console.warn(
+        `Twitter post exceeded 280 chars (${socialPosts.twitter.length}), truncating...`
+      );
+      socialPosts.twitter = socialPosts.twitter.substring(0, 277) + "...";
+    }
 
     return socialPosts;
   } catch (error) {

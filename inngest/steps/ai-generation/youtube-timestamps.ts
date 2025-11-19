@@ -1,7 +1,5 @@
-import type { Id } from "@/convex/_generated/dataModel";
 import type { TranscriptWithExtras } from "../../types/assemblyai";
 import type { step as InngestStep } from "inngest";
-import type { PublishFunction } from "../../lib/realtime";
 import { openai } from "../../lib/openai-client";
 import type OpenAI from "openai";
 
@@ -36,23 +34,8 @@ function formatYouTubeTimestamp(seconds: number): string {
 
 export async function generateYouTubeTimestamps(
   step: typeof InngestStep,
-  transcript: TranscriptWithExtras,
-  projectId: Id<"projects">,
-  publish: PublishFunction
+  transcript: TranscriptWithExtras
 ): Promise<YouTubeTimestamp[]> {
-  // Publish start as a tracked step
-  await step.run("youtube:publish-start", async () => {
-    await publish({
-      channel: `project:${projectId}`,
-      topic: "ai-generation:youtube:start",
-      data: {
-        job: "youtube",
-        status: "running",
-        message: "Generating YouTube timestamps...",
-      },
-    });
-  });
-
   console.log(
     "Generating YouTube timestamps from AssemblyAI chapters with AI-enhanced titles"
   );
@@ -169,19 +152,6 @@ Example:
   }));
 
   console.log(`Generated ${youtubeTimestamps.length} YouTube timestamps`);
-
-  // Publish complete as a tracked step
-  await step.run("youtube:publish-complete", async () => {
-    await publish({
-      channel: `project:${projectId}`,
-      topic: "ai-generation:youtube:complete",
-      data: {
-        job: "youtube",
-        status: "completed",
-        message: "YouTube timestamps generated!",
-      },
-    });
-  });
 
   return youtubeTimestamps;
 }

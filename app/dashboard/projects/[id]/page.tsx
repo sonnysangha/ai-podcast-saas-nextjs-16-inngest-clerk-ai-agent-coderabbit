@@ -15,9 +15,13 @@ import { TranscriptTab } from "@/components/project-tabs/transcript-tab";
 import { YouTubeTimestampsTab } from "@/components/project-tabs/youtube-timestamps-tab";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { useInngestSubscription } from "@inngest/realtime/hooks";
+import { REALTIME_TOPICS } from "@/inngest/lib/realtime-topics";
+
+type PhaseStatus = "pending" | "running" | "completed";
 
 export default function ProjectDetailPage({
   params,
@@ -28,79 +32,110 @@ export default function ProjectDetailPage({
   const { id } = use(params);
   const projectId = id as Id<"projects">;
 
-  // Fetch project data from Convex (for persistence)
+  // Fetch project data from Convex (ONLY for persisted data, NOT for realtime status)
   const project = useQuery(api.projects.getProject, { projectId });
 
-  // State for tracking individual AI job statuses
-  const [jobStatuses, setJobStatuses] = useState<
-    Record<
-      string,
-      {
-        status: "pending" | "running" | "completed";
-        message: string;
-      }
-    >
-  >({
-    summary: { status: "pending", message: "" },
-    hashtags: { status: "pending", message: "" },
-    titles: { status: "pending", message: "" },
-    social: { status: "pending", message: "" },
-    youtube: { status: "pending", message: "" },
-    keyMoments: { status: "pending", message: "" },
-  });
+  // Track 2-phase processing status via Inngest Realtime (NOT Convex)
+  const [transcriptionStatus, setTranscriptionStatus] =
+    useState<PhaseStatus>("pending");
+  const [generationStatus, setGenerationStatus] =
+    useState<PhaseStatus>("pending");
+
+  // Track if we've received any realtime updates
+  const [hasRealtimeUpdates, setHasRealtimeUpdates] = useState(false);
+
+  // Track processed message IDs to avoid duplicates
+  const [processedMessageIds] = useState(() => new Set<string>());
 
   // Fetch Inngest Realtime subscription token
   const fetchRealtimeToken = useCallback(async () => {
+    console.log("🔑 Fetching Inngest realtime token for project:", projectId);
     const response = await fetch(`/api/realtime/token?projectId=${projectId}`);
     const data = await response.json();
+    console.log("🔑 Token received:", data.token ? "✓" : "✗");
     return data.token;
   }, [projectId]);
 
-  // Subscribe to Inngest Realtime updates (showcases real-time streaming!)
-  const { freshData } = useInngestSubscription({
+  // Subscribe to Inngest Realtime updates (showcasing Inngest, NOT Convex)
+  const { data } = useInngestSubscription({
     refreshToken: fetchRealtimeToken,
   });
 
-  // Process real-time messages from Inngest
+  // Process Inngest realtime messages (4 topics: transcription start/done, generation start/done)
   useEffect(() => {
-    if (!freshData || freshData.length === 0) return;
+    if (!data || data.length === 0) return;
 
-    freshData.forEach(
+    data.forEach(
       (message: { topic: string; data: Record<string, unknown> }) => {
-        // Handle individual AI job start events
-        if (
-          message.topic.startsWith("ai-generation:") &&
-          message.topic.endsWith(":start")
-        ) {
-          const job = message.topic.split(":")[1]; // Extract job name
-          const data = message.data;
-          setJobStatuses((prev) => ({
-            ...prev,
-            [job]: {
-              status: "running",
-              message: data.message as string,
-            },
-          }));
+        const messageId = `${message.topic}-${JSON.stringify(message.data)}`;
+
+        // Skip if already processed
+        if (processedMessageIds.has(messageId)) {
+          return;
         }
 
-        // Handle individual AI job complete events
-        if (
-          message.topic.startsWith("ai-generation:") &&
-          message.topic.endsWith(":complete")
-        ) {
-          const job = message.topic.split(":")[1]; // Extract job name
-          const data = message.data;
-          setJobStatuses((prev) => ({
-            ...prev,
-            [job]: {
-              status: "completed",
-              message: data.message as string,
-            },
-          }));
+        processedMessageIds.add(messageId);
+        setHasRealtimeUpdates(true);
+        console.log("📡 Inngest realtime message:", {
+          topic: message.topic,
+          data: message.data,
+        });
+
+        // Handle transcription phase
+        if (message.topic === REALTIME_TOPICS.TRANSCRIPTION_START) {
+          console.log("🎤 Transcription started");
+          setTranscriptionStatus("running");
+        } else if (message.topic === REALTIME_TOPICS.TRANSCRIPTION_DONE) {
+          console.log("✅ Transcription completed");
+          setTranscriptionStatus("completed");
+        }
+        // Handle generation phase
+        else if (message.topic === REALTIME_TOPICS.GENERATION_START) {
+          console.log("🤖 AI Generation started (6 outputs)");
+          setGenerationStatus("running");
+        } else if (message.topic === REALTIME_TOPICS.GENERATION_DONE) {
+          console.log("✅ AI Generation completed");
+          setGenerationStatus("completed");
         }
       },
     );
-  }, [freshData]);
+  }, [data, processedMessageIds]);
+
+  // Fallback to Convex job status if no realtime updates yet
+  // This ensures UI doesn't get stuck showing "pending" if realtime connection is slow
+  useEffect(() => {
+    if (hasRealtimeUpdates || !project) return;
+
+    // Map Convex job status to phase status
+    if (project.jobStatus?.transcription === "running") {
+      setTranscriptionStatus("running");
+    } else if (project.jobStatus?.transcription === "completed") {
+      setTranscriptionStatus("completed");
+    }
+
+    // Check if any generation job is running or completed
+    const generationJobs = [
+      project.jobStatus?.keyMoments,
+      project.jobStatus?.summary,
+      project.jobStatus?.social,
+      project.jobStatus?.titles,
+      project.jobStatus?.hashtags,
+      project.jobStatus?.youtubeTimestamps,
+    ];
+
+    const anyGenerationRunning = generationJobs.some(
+      (job) => job === "running",
+    );
+    const allGenerationCompleted = generationJobs.every(
+      (job) => job === "completed",
+    );
+
+    if (allGenerationCompleted) {
+      setGenerationStatus("completed");
+    } else if (anyGenerationRunning) {
+      setGenerationStatus("running");
+    }
+  }, [project, hasRealtimeUpdates]);
 
   if (!project) {
     return (
@@ -130,6 +165,7 @@ export default function ProjectDetailPage({
   const isProcessing = project.status === "processing";
   const isCompleted = project.status === "completed";
   const hasFailed = project.status === "failed";
+  const showGenerating = isProcessing && generationStatus === "running";
 
   return (
     <div className="container max-w-6xl mx-auto py-10 px-4">
@@ -142,13 +178,13 @@ export default function ProjectDetailPage({
       <div className="grid gap-6">
         <ProjectStatusCard project={project} />
 
-        {/* Processing Steps - Only show while processing (hide when completed) */}
+        {/* Processing Flow - Only show while processing */}
         {isProcessing && (
           <ProcessingFlow
-            jobStatus={project.jobStatus}
+            transcriptionStatus={transcriptionStatus}
+            generationStatus={generationStatus}
             fileDuration={project.fileDuration}
             createdAt={project.createdAt}
-            jobStatuses={jobStatuses}
           />
         )}
 
@@ -169,8 +205,8 @@ export default function ProjectDetailPage({
           </Card>
         )}
 
-        {/* Results - Only show when completed */}
-        {isCompleted && (
+        {/* Results - Show skeleton while generating, populate when completed */}
+        {(showGenerating || isCompleted) && (
           <Tabs defaultValue="summary" className="w-full">
             <TabsList className="flex flex-col md:flex-row md:inline-flex w-full md:w-auto h-auto">
               <TabsTrigger value="summary" className="w-full md:w-auto">
@@ -201,47 +237,134 @@ export default function ProjectDetailPage({
 
             {/* Summary Tab */}
             <TabsContent value="summary" className="space-y-4">
-              {project.summary && <SummaryTab summary={project.summary} />}
+              {showGenerating ? (
+                <Card>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-48" />
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </CardContent>
+                </Card>
+              ) : (
+                project.summary && <SummaryTab summary={project.summary} />
+              )}
             </TabsContent>
 
             {/* Key Moments Tab */}
             <TabsContent value="moments" className="space-y-4">
-              {project.keyMoments && (
-                <KeyMomentsTab keyMoments={project.keyMoments} />
+              {showGenerating ? (
+                <Card>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-48" />
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                  </CardContent>
+                </Card>
+              ) : (
+                project.keyMoments && (
+                  <KeyMomentsTab keyMoments={project.keyMoments} />
+                )
               )}
             </TabsContent>
 
             {/* YouTube Timestamps Tab */}
             <TabsContent value="youtube-timestamps" className="space-y-4">
-              {project.youtubeTimestamps && (
-                <YouTubeTimestampsTab timestamps={project.youtubeTimestamps} />
+              {showGenerating ? (
+                <Card>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-48" />
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                  </CardContent>
+                </Card>
+              ) : (
+                project.youtubeTimestamps && (
+                  <YouTubeTimestampsTab
+                    timestamps={project.youtubeTimestamps}
+                  />
+                )
               )}
             </TabsContent>
 
             {/* Social Posts Tab */}
             <TabsContent value="social" className="space-y-4">
-              {project.socialPosts && (
-                <SocialPostsTab socialPosts={project.socialPosts} />
+              {showGenerating ? (
+                <Card>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-48" />
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                  </CardContent>
+                </Card>
+              ) : (
+                project.socialPosts && (
+                  <SocialPostsTab socialPosts={project.socialPosts} />
+                )
               )}
             </TabsContent>
 
             {/* Hashtags Tab */}
             <TabsContent value="hashtags" className="space-y-4">
-              {project.hashtags && <HashtagsTab hashtags={project.hashtags} />}
+              {showGenerating ? (
+                <Card>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-48" />
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                  </CardContent>
+                </Card>
+              ) : (
+                project.hashtags && <HashtagsTab hashtags={project.hashtags} />
+              )}
             </TabsContent>
 
             {/* Titles Tab */}
             <TabsContent value="titles" className="space-y-4">
-              {project.titles && <TitlesTab titles={project.titles} />}
+              {showGenerating ? (
+                <Card>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-48" />
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                  </CardContent>
+                </Card>
+              ) : (
+                project.titles && <TitlesTab titles={project.titles} />
+              )}
             </TabsContent>
 
             {/* Transcript Tab */}
             <TabsContent value="transcript" className="space-y-4">
-              {project.transcript && (
-                <TranscriptTab
-                  transcript={project.transcript}
-                  captions={project.captions}
-                />
+              {showGenerating ? (
+                <Card>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-48" />
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                  </CardContent>
+                </Card>
+              ) : (
+                project.transcript && (
+                  <TranscriptTab
+                    transcript={project.transcript}
+                    captions={project.captions}
+                  />
+                )
               )}
             </TabsContent>
           </Tabs>

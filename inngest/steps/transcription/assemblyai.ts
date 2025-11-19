@@ -9,12 +9,7 @@ import {
   type AssemblyAIUtterance,
   type AssemblyAIWord,
 } from "../../types/assemblyai";
-import {
-  publishStepStart,
-  publishStepComplete,
-  publishResult,
-  type PublishFunction,
-} from "../../lib/realtime";
+import { type PublishFunction } from "../../lib/realtime";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
 const assemblyai = new AssemblyAI({
@@ -31,15 +26,6 @@ export async function transcribeWithAssemblyAI(
     job: "transcription",
     status: "running",
   });
-
-  // Publish transcription start
-  await publishStepStart(
-    publish,
-    projectId,
-    "transcription",
-    "Transcribing audio with AssemblyAI...",
-    15
-  );
 
   console.log("Starting AssemblyAI transcription for:", audioUrl);
 
@@ -125,19 +111,6 @@ export async function transcribeWithAssemblyAI(
       projectId,
       job: "transcription",
       status: "completed",
-    });
-
-    // Publish transcription completion
-    await publishStepComplete(
-      publish,
-      projectId,
-      "transcription",
-      "Transcription completed!",
-      30
-    );
-
-    await publishResult(publish, projectId, "transcript", {
-      preview: response.text?.substring(0, 200) + "...",
     });
 
     // Return transcript with chapters and utterances for content generation
