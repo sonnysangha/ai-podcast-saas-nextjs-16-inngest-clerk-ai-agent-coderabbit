@@ -1,3 +1,31 @@
+/**
+ * AssemblyAI Transcription Step
+ * 
+ * Transcribes podcast audio using AssemblyAI's API with advanced features:
+ * - Speaker diarization: Identifies who is speaking (A, B, C, etc.)
+ * - Auto chapters: AI-detected topic changes with summaries
+ * - Word-level timestamps: Precise timing for each word
+ * - Formatted text: Punctuation and capitalization
+ * 
+ * Integration Flow:
+ * 1. Receive audio URL from Vercel Blob
+ * 2. Submit to AssemblyAI for processing (async job)
+ * 3. AssemblyAI polls until transcription completes
+ * 4. Transform response to match our Convex schema
+ * 5. Save to Convex (triggers UI update)
+ * 6. Return enhanced transcript for AI generation
+ * 
+ * Error Handling:
+ * - AssemblyAI errors: Marked as failed, error recorded in Convex
+ * - Inngest automatic retries: Transient failures are retried
+ * - Status tracking: jobStatus.transcription updated in real-time
+ * 
+ * Design Decision: Why AssemblyAI over OpenAI Whisper?
+ * - Speaker diarization: AssemblyAI has better multi-speaker detection
+ * - Auto chapters: Helps with AI content generation (better context)
+ * - Faster processing: Optimized for speech (vs. Whisper for accuracy)
+ * - Async API: Better for long podcasts (no timeout issues)
+ */
 import { AssemblyAI } from "assemblyai";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -10,14 +38,23 @@ import type {
   TranscriptWithExtras,
 } from "../../types/assemblyai";
 
+// Initialize AssemblyAI client with API key from environment
 const assemblyai = new AssemblyAI({
   apiKey: process.env.ASSEMBLYAI_API_KEY || "",
 });
 
+/**
+ * Main transcription function called by Inngest workflow
+ * 
+ * @param audioUrl - Public URL to audio file (from Vercel Blob)
+ * @param projectId - Convex project ID for status updates
+ * @returns TranscriptWithExtras - Enhanced transcript with chapters and speakers
+ */
 export async function transcribeWithAssemblyAI(
   audioUrl: string,
   projectId: Id<"projects">,
 ): Promise<TranscriptWithExtras> {
+  // Mark transcription as running in Convex (UI shows "Transcribing..." state)
   await convex.mutation(api.projects.updateJobStatus, {
     projectId,
     job: "transcription",
@@ -28,14 +65,15 @@ export async function transcribeWithAssemblyAI(
 
   try {
     // Submit transcription job to AssemblyAI
+    // This API call blocks until transcription is complete (can take minutes for long files)
     const transcriptResponse = await assemblyai.transcripts.transcribe({
-      audio: audioUrl,
-      speaker_labels: true,
-      auto_chapters: true,
-      format_text: true,
+      audio: audioUrl, // Public URL - AssemblyAI downloads the file
+      speaker_labels: true, // Enable speaker diarization
+      auto_chapters: true, // Detect topic changes automatically
+      format_text: true, // Add punctuation and capitalization
     });
 
-    // Check for errors
+    // Check for transcription errors
     if (transcriptResponse.status === "error") {
       throw new Error(
         transcriptResponse.error || "AssemblyAI transcription failed",
@@ -44,7 +82,8 @@ export async function transcribeWithAssemblyAI(
 
     console.log("AssemblyAI transcription completed");
 
-    // Type assertion for AssemblyAI response (their TypeScript types are incomplete)
+    // Type assertion: AssemblyAI's TypeScript types are incomplete
+    // We manually define the full response structure in our types file
     const response = transcriptResponse as unknown as {
       text: string;
       segments: AssemblyAISegment[];
@@ -62,16 +101,18 @@ export async function transcribeWithAssemblyAI(
       } speakers`,
     );
 
-    // Transform AssemblyAI response to our schema
+    // Transform AssemblyAI response to match our Convex schema
     const assemblySegments: AssemblyAISegment[] = response.segments || [];
     const assemblyChapters: AssemblyAIChapter[] = response.chapters || [];
     const assemblyUtterances: AssemblyAIUtterance[] = response.utterances || [];
 
+    // Format segments with word-level timing data
     const formattedSegments = assemblySegments.map((segment, idx) => ({
       id: idx,
       start: segment.start,
       end: segment.end,
       text: segment.text,
+      // Transform word structure to match Convex schema
       words: (segment.words || []).map((word) => ({
         word: word.text,
         start: word.start,
@@ -79,23 +120,25 @@ export async function transcribeWithAssemblyAI(
       })),
     }));
 
+    // Prepare transcript object for Convex
     const formattedTranscript = {
       text: response.text || "",
       segments: formattedSegments,
     };
 
-    // Transform speaker utterances
+    // Transform speaker utterances (convert milliseconds to seconds for consistency)
     const speakers = assemblyUtterances.map(
       (utterance: AssemblyAIUtterance) => ({
         speaker: utterance.speaker,
-        start: utterance.start / 1000,
-        end: utterance.end / 1000,
+        start: utterance.start / 1000, // ms to seconds
+        end: utterance.end / 1000, // ms to seconds
         text: utterance.text,
         confidence: utterance.confidence,
       }),
     );
 
     // Save transcript with speaker info to Convex
+    // This triggers UI update - transcript tab becomes available
     await convex.mutation(api.projects.saveTranscript, {
       projectId,
       transcript: {
@@ -104,13 +147,15 @@ export async function transcribeWithAssemblyAI(
       },
     });
 
+    // Mark transcription job as completed
     await convex.mutation(api.projects.updateJobStatus, {
       projectId,
       job: "transcription",
       status: "completed",
     });
 
-    // Return transcript with chapters and utterances for content generation
+    // Return enhanced transcript for AI generation steps
+    // Includes chapters and utterances which help improve AI content quality
     return {
       text: response.text || "",
       segments: formattedSegments,
@@ -121,18 +166,21 @@ export async function transcribeWithAssemblyAI(
   } catch (error) {
     console.error("AssemblyAI transcription error:", error);
 
+    // Mark job as failed in Convex
     await convex.mutation(api.projects.updateJobStatus, {
       projectId,
       job: "transcription",
       status: "failed",
     });
 
+    // Record detailed error for debugging
     await convex.mutation(api.projects.recordError, {
       projectId,
       message: error instanceof Error ? error.message : "Transcription failed",
       step: "transcription",
     });
 
+    // Re-throw to stop workflow execution (Inngest will retry based on config)
     throw error;
   }
 }

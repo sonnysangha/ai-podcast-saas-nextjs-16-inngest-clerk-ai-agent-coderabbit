@@ -1,3 +1,26 @@
+/**
+ * Platform-Optimized Social Media Posts Generation
+ * 
+ * Generates 6 unique social media posts, each tailored to a specific platform's:
+ * - Character limits and formatting conventions
+ * - Audience demographics and tone expectations
+ * - Engagement patterns and best practices
+ * - Algorithm preferences
+ * 
+ * Platforms Covered:
+ * - Twitter/X: 280 chars, punchy and quotable
+ * - LinkedIn: Professional, thought-leadership
+ * - Instagram: Visual storytelling, emoji-rich
+ * - TikTok: Gen Z voice, trend-aware
+ * - YouTube: Detailed descriptions with keywords
+ * - Facebook: Community-focused, shareable
+ * 
+ * Prompt Engineering:
+ * - Provides chapter summaries (context without full transcript)
+ * - Strict character limits enforced in prompt
+ * - Platform-specific guidelines and examples
+ * - Safety validation for Twitter's 280-char limit
+ */
 import type { step as InngestStep } from "inngest";
 import type OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
@@ -5,9 +28,24 @@ import { openai } from "../../lib/openai-client";
 import { type SocialPosts, socialPostsSchema } from "../../schemas/ai-outputs";
 import type { TranscriptWithExtras } from "../../types/assemblyai";
 
+// System prompt establishes GPT's expertise in platform-specific marketing
 const SOCIAL_SYSTEM_PROMPT =
   "You are a viral social media marketing expert who understands each platform's unique audience, tone, and best practices. You create platform-optimized content that drives engagement and grows audiences.";
 
+/**
+ * Builds prompt with episode context and platform-specific guidelines
+ * 
+ * Prompt Structure:
+ * - Episode summary from first chapter (context)
+ * - Key topics from all chapters (content outline)
+ * - Detailed platform requirements (formatting, tone, best practices)
+ * 
+ * Design Decision: Why 6 separate posts vs. one generic post?
+ * - Each platform has unique audience expectations
+ * - Cross-posting generic content performs poorly
+ * - Platform algorithms favor native content styles
+ * - Better engagement = better ROI for content creators
+ */
 function buildSocialPrompt(transcript: TranscriptWithExtras): string {
   return `Create platform-specific promotional posts for this podcast episode.
 
@@ -70,6 +108,19 @@ Create 6 unique posts optimized for each platform:
 Make each post unique and truly optimized for that platform. No generic content.`;
 }
 
+/**
+ * Generates platform-optimized social posts using OpenAI
+ * 
+ * Error Handling:
+ * - Returns placeholder posts on failure (graceful degradation)
+ * - Safety check: Truncates Twitter post if it exceeds 280 chars
+ * - Logs errors for debugging
+ * 
+ * Validation:
+ * - Zod schema enforces structure
+ * - Twitter max length enforced in schema and post-validation
+ * - Post-generation safety check catches edge cases
+ */
 export async function generateSocialPosts(
   step: typeof InngestStep,
   transcript: TranscriptWithExtras
@@ -77,11 +128,12 @@ export async function generateSocialPosts(
   console.log("Generating social posts with GPT-4");
 
   try {
-    // Bind OpenAI method to preserve client context (required per Inngest docs)
+    // Bind OpenAI method to preserve `this` context for step.ai.wrap
     const createCompletion = openai.chat.completions.create.bind(
       openai.chat.completions
     );
 
+    // Call OpenAI with Structured Outputs for type-safe, validated response
     const response = (await step.ai.wrap(
       "generate-social-posts-with-gpt",
       createCompletion,
@@ -99,6 +151,7 @@ export async function generateSocialPosts(
     const socialPosts = content
       ? socialPostsSchema.parse(JSON.parse(content))
       : {
+          // Fallback posts if parsing fails
           twitter: "New podcast episode!",
           linkedin: "Check out our latest podcast.",
           instagram: "New episode out now! 🎙️",
@@ -107,7 +160,8 @@ export async function generateSocialPosts(
           facebook: "New podcast available!",
         };
 
-    // Safety check: Truncate Twitter post if it somehow exceeds 280 chars
+    // Safety check: Enforce Twitter's 280-character limit
+    // GPT sometimes exceeds despite prompt instructions
     if (socialPosts.twitter.length > 280) {
       console.warn(
         `Twitter post exceeded 280 chars (${socialPosts.twitter.length}), truncating...`
@@ -119,6 +173,7 @@ export async function generateSocialPosts(
   } catch (error) {
     console.error("GPT social posts error:", error);
 
+    // Graceful degradation: Return error messages but allow workflow to continue
     return {
       twitter: "⚠️ Error generating social post. Check logs for details.",
       linkedin: "⚠️ Error generating social post. Check logs for details.",

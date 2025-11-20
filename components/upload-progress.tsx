@@ -1,3 +1,26 @@
+/**
+ * Upload Progress Component
+ * 
+ * Displays upload status, progress, and file metadata.
+ * Provides visual feedback for upload and processing states.
+ * 
+ * States:
+ * - uploading: File being uploaded to Blob (0-100% progress)
+ * - processing: Creating project and triggering workflow (100% progress)
+ * - completed: Ready to view project (shows success message)
+ * - error: Upload or processing failed (shows error message)
+ * 
+ * File Metadata Display:
+ * - File name (truncated if long)
+ * - File size (formatted: MB, GB, etc.)
+ * - Duration (if available, formatted: MM:SS or HH:MM:SS)
+ * - Status icon (spinner, check, error)
+ * 
+ * Design Decision: Show duration in upload screen
+ * - Helps users verify correct file was selected
+ * - Provides context for expected processing time
+ * - Duration extraction happens before upload starts
+ */
 "use client";
 
 import { CheckCircle2, Clock, FileAudio, Loader2, XCircle } from "lucide-react";
@@ -7,12 +30,12 @@ import { formatDuration, formatFileSize } from "@/lib/format";
 import type { UploadStatus } from "@/lib/types";
 
 interface UploadProgressProps {
-  fileName: string;
-  fileSize: number;
-  fileDuration?: number;
-  progress: number;
-  status: UploadStatus;
-  error?: string;
+  fileName: string; // Display name
+  fileSize: number; // Bytes
+  fileDuration?: number; // Seconds (optional - may not extract successfully)
+  progress: number; // 0-100
+  status: UploadStatus; // Current state
+  error?: string; // Error message if status is "error"
 }
 
 export function UploadProgress({
@@ -27,13 +50,19 @@ export function UploadProgress({
     <Card>
       <CardContent className="p-4">
         <div className="space-y-4">
-          {/* File Info */}
+          {/* File metadata and status icon */}
           <div className="flex items-start gap-4">
+            {/* File icon */}
             <div className="rounded-lg bg-primary/10 p-3">
               <FileAudio className="h-6 w-6 text-primary" />
             </div>
+            
+            {/* File info */}
             <div className="flex-1 min-w-0">
+              {/* File name (truncated if too long) */}
               <p className="font-medium truncate">{fileName}</p>
+              
+              {/* Size and duration metadata */}
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                 <span>{formatFileSize(fileSize)}</span>
                 {fileDuration && (
@@ -47,6 +76,8 @@ export function UploadProgress({
                 )}
               </div>
             </div>
+            
+            {/* Status icon (right side) */}
             <div>
               {status === "uploading" && (
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -63,7 +94,7 @@ export function UploadProgress({
             </div>
           </div>
 
-          {/* Progress Bar */}
+          {/* Progress bar (only show during upload/processing) */}
           {(status === "uploading" || status === "processing") && (
             <div className="space-y-2">
               <Progress value={progress} className="h-2" />
@@ -76,13 +107,14 @@ export function UploadProgress({
             </div>
           )}
 
-          {/* Status Messages */}
+          {/* Status message for completed state */}
           {status === "completed" && (
             <p className="text-sm text-green-600">
               Upload completed! Redirecting to project dashboard...
             </p>
           )}
 
+          {/* Error message display */}
           {status === "error" && error && (
             <p className="text-sm text-destructive">{error}</p>
           )}

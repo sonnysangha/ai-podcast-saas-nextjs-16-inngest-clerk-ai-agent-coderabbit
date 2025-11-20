@@ -1,17 +1,34 @@
+/**
+ * Convex Database Schema
+ * 
+ * Defines the structure of all data stored in Convex for the AI Podcast Assistant.
+ * Convex provides real-time reactivity, automatic TypeScript types, and ACID transactions.
+ * 
+ * Key Design Decisions:
+ * - Single "projects" table stores all podcast processing data
+ * - Denormalized structure (all data in one document) for real-time updates and atomic writes
+ * - Optional fields allow progressive data population as Inngest jobs complete
+ * - jobStatus tracks each generation step independently for granular UI feedback
+ * - Indexes optimize common queries (user's projects, filtering by status, sorting by date)
+ */
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
   projects: defineTable({
+    // User ownership - links to Clerk user ID
     userId: v.string(),
 
-    inputUrl: v.string(),
-    fileName: v.string(),
-    fileSize: v.number(),
-    fileDuration: v.optional(v.number()),
-    fileFormat: v.string(),
-    mimeType: v.string(),
+    // Input file metadata - stored in Vercel Blob
+    inputUrl: v.string(), // Vercel Blob URL (public access)
+    fileName: v.string(), // Original filename for display
+    fileSize: v.number(), // Bytes - used for billing/limits
+    fileDuration: v.optional(v.number()), // Seconds - extracted or estimated
+    fileFormat: v.string(), // Extension (mp3, mp4, wav, etc.)
+    mimeType: v.string(), // MIME type for validation
 
+    // Overall project status - drives UI state machine
+    // uploaded -> processing -> completed (or failed)
     status: v.union(
       v.literal("uploaded"),
       v.literal("processing"),
@@ -19,6 +36,8 @@ export default defineSchema({
       v.literal("failed")
     ),
 
+    // Granular job status tracking - enables real-time progress UI
+    // Each AI generation task updates its own status independently
     jobStatus: v.object({
       transcription: v.union(
         v.literal("pending"),
@@ -72,37 +91,40 @@ export default defineSchema({
       ),
     }),
 
+    // Processing metrics - useful for analytics and optimization
     metrics: v.optional(
       v.object({
-        totalProcessingTime: v.optional(v.number()),
-        transcriptionTokens: v.optional(v.number()),
-        generationTokens: v.optional(v.number()),
+        totalProcessingTime: v.optional(v.number()), // Total seconds
+        transcriptionTokens: v.optional(v.number()), // AssemblyAI usage
+        generationTokens: v.optional(v.number()), // OpenAI token count
       })
     ),
 
+    // Error tracking - stores failure details for debugging
     error: v.optional(
       v.object({
-        message: v.string(),
-        step: v.string(),
-        timestamp: v.number(),
+        message: v.string(), // User-friendly error message
+        step: v.string(), // Which job failed (transcription, summary, etc.)
+        timestamp: v.number(), // When the error occurred
         details: v.optional(
           v.object({
-            statusCode: v.optional(v.number()),
-            stack: v.optional(v.string()),
+            statusCode: v.optional(v.number()), // HTTP status if applicable
+            stack: v.optional(v.string()), // Stack trace for debugging
           })
         ),
       })
     ),
 
+    // Transcript from AssemblyAI - includes word-level timing and speaker detection
     transcript: v.optional(
       v.object({
-        text: v.string(),
+        text: v.string(), // Full transcript as plain text
         segments: v.array(
           v.object({
             id: v.number(),
-            start: v.number(),
-            end: v.number(),
-            text: v.string(),
+            start: v.number(), // Start time in seconds
+            end: v.number(), // End time in seconds
+            text: v.string(), // Segment text
             words: v.optional(
               v.array(
                 v.object({
@@ -114,67 +136,75 @@ export default defineSchema({
             ),
           })
         ),
+        // Speaker diarization - who said what and when
         speakers: v.optional(
           v.array(
             v.object({
-              speaker: v.string(),
+              speaker: v.string(), // Speaker label (A, B, C, etc.)
               start: v.number(),
               end: v.number(),
               text: v.string(),
-              confidence: v.number(),
+              confidence: v.number(), // Detection confidence (0-1)
             })
           )
         ),
       })
     ),
 
+    // AI-generated key moments - interesting points for social media clips
     keyMoments: v.optional(
       v.array(
         v.object({
-          time: v.string(),
-          timestamp: v.number(),
-          text: v.string(),
-          description: v.string(),
+          time: v.string(), // Human-readable time (e.g., "12:34")
+          timestamp: v.number(), // Seconds for programmatic use
+          text: v.string(), // What was said at this moment
+          description: v.string(), // Why this moment is interesting
         })
       )
     ),
 
+    // Podcast summary - multi-format for different use cases
     summary: v.optional(
       v.object({
-        full: v.string(),
-        bullets: v.array(v.string()),
-        insights: v.array(v.string()),
-        tldr: v.string(),
+        full: v.string(), // 200-300 word overview
+        bullets: v.array(v.string()), // 5-7 key points
+        insights: v.array(v.string()), // 3-5 actionable takeaways
+        tldr: v.string(), // One sentence hook
       })
     ),
 
+    // Captions for accessibility and SEO
     captions: v.optional(
       v.object({
-        srtUrl: v.string(),
-        rawText: v.string(),
+        srtUrl: v.string(), // Vercel Blob URL to .srt file
+        rawText: v.string(), // Plain text version
       })
     ),
 
+    // Platform-optimized social media posts
+    // Each post is tailored to the platform's best practices and character limits
     socialPosts: v.optional(
       v.object({
-        twitter: v.string(),
-        linkedin: v.string(),
-        instagram: v.string(),
-        tiktok: v.string(),
-        youtube: v.string(),
-        facebook: v.string(),
+        twitter: v.string(), // 280 chars, punchy and engaging
+        linkedin: v.string(), // Professional tone, longer form
+        instagram: v.string(), // Visual description + engagement hooks
+        tiktok: v.string(), // Casual, trend-aware
+        youtube: v.string(), // Description with timestamps and CTAs
+        facebook: v.string(), // Community-focused, conversation starters
       })
     ),
 
+    // Title suggestions for various contexts
     titles: v.optional(
       v.object({
-        youtubeShort: v.array(v.string()),
-        youtubeLong: v.array(v.string()),
-        podcastTitles: v.array(v.string()),
-        seoKeywords: v.array(v.string()),
+        youtubeShort: v.array(v.string()), // Catchy, clickable (60 chars)
+        youtubeLong: v.array(v.string()), // Descriptive, SEO-friendly
+        podcastTitles: v.array(v.string()), // Episode titles
+        seoKeywords: v.array(v.string()), // Keywords for discoverability
       })
     ),
 
+    // Platform-specific hashtag recommendations
     hashtags: v.optional(
       v.object({
         youtube: v.array(v.string()),
@@ -185,21 +215,24 @@ export default defineSchema({
       })
     ),
 
+    // YouTube chapter timestamps - enhances navigation and watch time
     youtubeTimestamps: v.optional(
       v.array(
         v.object({
-          timestamp: v.string(),
-          description: v.string(),
+          timestamp: v.string(), // Format: "12:34"
+          description: v.string(), // Chapter title/description
         })
       )
     ),
 
-    createdAt: v.number(),
-    updatedAt: v.number(),
-    completedAt: v.optional(v.number()),
+    // Timestamp metadata
+    createdAt: v.number(), // Project creation time
+    updatedAt: v.number(), // Last modification time
+    completedAt: v.optional(v.number()), // When processing finished
   })
-    .index("by_user", ["userId"])
-    .index("by_status", ["status"])
-    .index("by_user_and_status", ["userId", "status"])
-    .index("by_created_at", ["createdAt"]),
+    // Indexes for efficient queries
+    .index("by_user", ["userId"]) // List all projects for a user
+    .index("by_status", ["status"]) // Filter by processing status
+    .index("by_user_and_status", ["userId", "status"]) // User's active/completed projects
+    .index("by_created_at", ["createdAt"]), // Sort by newest first
 });
