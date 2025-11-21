@@ -45,8 +45,20 @@ export async function generateKeyMoments(
 ): Promise<KeyMoment[]> {
   console.log("Generating key moments from AssemblyAI chapters");
 
+  // // 🔥 TEST: Simulate failure to test error handling
+  // throw new Error("TEST: Key moments generation failed");
+
   // Use AssemblyAI's auto-generated chapters as key moments
   const chapters = transcript.chapters || [];
+
+  // If no chapters detected, return empty array
+  // This is not an error - some short podcasts may not have distinct chapters
+  if (chapters.length === 0) {
+    console.log(
+      "No chapters detected by AssemblyAI - returning empty key moments"
+    );
+    return [];
+  }
 
   // Transform each chapter into a key moment with formatted timestamp
   const keyMoments = chapters.map((chapter) => {

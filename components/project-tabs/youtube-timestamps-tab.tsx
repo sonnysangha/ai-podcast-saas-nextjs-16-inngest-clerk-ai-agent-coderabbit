@@ -1,10 +1,12 @@
 "use client";
 
+import { ErrorRetryCard } from "@/components/project-detail/error-retry-card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Id } from "@/convex/_generated/dataModel";
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type YouTubeTimestamp = {
   timestamp: string;
@@ -12,13 +14,31 @@ type YouTubeTimestamp = {
 };
 
 type YouTubeTimestampsTabProps = {
-  timestamps: YouTubeTimestamp[];
+  projectId: Id<"projects">;
+  timestamps?: YouTubeTimestamp[];
+  error?: string;
 };
 
 export function YouTubeTimestampsTab({
+  projectId,
   timestamps,
+  error,
 }: YouTubeTimestampsTabProps) {
   const [copied, setCopied] = useState(false);
+
+  if (error) {
+    return <ErrorRetryCard projectId={projectId} job="youtubeTimestamps" errorMessage={error} />;
+  }
+
+  if (!timestamps || timestamps.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center text-muted-foreground">
+          No YouTube timestamps available
+        </CardContent>
+      </Card>
+    );
+  }
 
   const formattedTimestamps = timestamps
     .map((t) => `${t.timestamp} ${t.description}`)
@@ -76,9 +96,9 @@ export function YouTubeTimestampsTab({
           <div className="space-y-2 border-t pt-4">
             <h4 className="text-sm font-semibold">Individual Timestamps:</h4>
             <div className="space-y-2">
-              {timestamps.map((timestamp) => (
+              {timestamps.map((timestamp, idx) => (
                 <div
-                  key={timestamp.timestamp}
+                  key={idx}
                   className="flex items-start gap-3 p-3 bg-muted/30 rounded-md hover:bg-muted/50 transition-colors"
                 >
                   <code className="text-sm font-mono font-semibold text-primary min-w-[60px]">

@@ -31,6 +31,8 @@ export function ProcessingFlow({
 }: ProcessingFlowProps) {
   const isTranscribing = transcriptionStatus === "running";
   const transcriptionComplete = transcriptionStatus === "completed";
+  const transcriptionInProgress =
+    transcriptionStatus === "pending" || transcriptionStatus === "running";
   const isGenerating = generationStatus === "running";
   const generationComplete = generationStatus === "completed";
 
@@ -100,7 +102,7 @@ export function ProcessingFlow({
         status={transcriptionStatus}
         isActive={isTranscribing}
         progress={isTranscribing ? transcriptionProgress : undefined}
-        timeEstimate={isTranscribing ? timeRangeText : undefined}
+        timeEstimate={transcriptionInProgress ? timeRangeText : undefined}
       />
 
       <div className="flex items-center justify-center">

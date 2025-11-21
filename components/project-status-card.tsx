@@ -1,5 +1,3 @@
-"use client";
-
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Doc } from "@/convex/_generated/dataModel";
@@ -14,9 +12,10 @@ export function ProjectStatusCard({ project }: ProjectStatusCardProps) {
   return (
     <Card>
       <CardContent className="py-4">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
+          {/* Project Info */}
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold break-words mb-1">
+            <h2 className="text-lg font-semibold wrap-break-words mb-1">
               {project.fileName}
             </h2>
             <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
@@ -33,6 +32,8 @@ export function ProjectStatusCard({ project }: ProjectStatusCardProps) {
               )}
             </div>
           </div>
+
+          {/* Status Badge */}
           <Badge
             variant={getStatusVariant(project.status)}
             className="shrink-0"

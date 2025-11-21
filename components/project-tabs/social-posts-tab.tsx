@@ -1,14 +1,17 @@
 "use client";
 
+import { ErrorRetryCard } from "@/components/project-detail/error-retry-card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import type { Id } from "@/convex/_generated/dataModel";
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { SocialIcon } from "react-social-icons";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 
 interface SocialPostsTabProps {
-  socialPosts: {
+  projectId: Id<"projects">;
+  socialPosts?: {
     twitter: string;
     linkedin: string;
     instagram: string;
@@ -16,6 +19,7 @@ interface SocialPostsTabProps {
     youtube: string;
     facebook: string;
   };
+  error?: string;
 }
 
 const PLATFORMS = [
@@ -63,8 +67,22 @@ const PLATFORMS = [
   },
 ];
 
-export function SocialPostsTab({ socialPosts }: SocialPostsTabProps) {
+export function SocialPostsTab({ projectId, socialPosts, error }: SocialPostsTabProps) {
   const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
+
+  if (error) {
+    return <ErrorRetryCard projectId={projectId} job="socialPosts" errorMessage={error} />;
+  }
+
+  if (!socialPosts) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center text-muted-foreground">
+          No social posts available
+        </CardContent>
+      </Card>
+    );
+  }
 
   const handleCopy = async (platform: string, text: string) => {
     await navigator.clipboard.writeText(text);

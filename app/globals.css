@@ -124,3 +124,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Clerk Pricing Table Customization */
+.cl-pricingTableCardPeriodToggle label,
+.cl-pricingTableCardPeriodToggle span {
+  color: white;
+}

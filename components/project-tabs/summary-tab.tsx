@@ -1,17 +1,41 @@
 "use client";
 
+import { ErrorRetryCard } from "@/components/project-detail/error-retry-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Id } from "@/convex/_generated/dataModel";
 
 interface SummaryTabProps {
-  summary: {
+  projectId: Id<"projects">;
+  summary?: {
     tldr: string;
     full: string;
     bullets: string[];
     insights: string[];
   };
+  error?: string;
 }
 
-export function SummaryTab({ summary }: SummaryTabProps) {
+export function SummaryTab({ projectId, summary, error }: SummaryTabProps) {
+  if (error) {
+    return (
+      <ErrorRetryCard
+        projectId={projectId}
+        job="summary"
+        errorMessage={error}
+      />
+    );
+  }
+
+  if (!summary) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center text-muted-foreground">
+          No summary available
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <Card>

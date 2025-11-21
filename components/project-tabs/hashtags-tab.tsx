@@ -1,16 +1,20 @@
 "use client";
 
+import { ErrorRetryCard } from "@/components/project-detail/error-retry-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Id } from "@/convex/_generated/dataModel";
 
 interface HashtagsTabProps {
-  hashtags: {
+  projectId: Id<"projects">;
+  hashtags?: {
     youtube: string[];
     instagram: string[];
     tiktok: string[];
     linkedin: string[];
     twitter: string[];
   };
+  error?: string;
 }
 
 const PLATFORMS = [
@@ -21,7 +25,21 @@ const PLATFORMS = [
   { key: "twitter" as const, title: "Twitter" },
 ];
 
-export function HashtagsTab({ hashtags }: HashtagsTabProps) {
+export function HashtagsTab({ projectId, hashtags, error }: HashtagsTabProps) {
+  if (error) {
+    return <ErrorRetryCard projectId={projectId} job="hashtags" errorMessage={error} />;
+  }
+
+  if (!hashtags) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center text-muted-foreground">
+          No hashtags available
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>

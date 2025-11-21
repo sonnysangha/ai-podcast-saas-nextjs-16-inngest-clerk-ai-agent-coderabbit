@@ -4,9 +4,11 @@
 
 /**
  * Phase status for processing workflow
- * Used by realtime updates and UI components
+ * Used by UI components to display current processing state
+ * Matches Convex schema jobStatus field
+ * Status updates flow from Inngest → Convex → UI (via subscriptions)
  */
-export type PhaseStatus = "pending" | "running" | "completed";
+export type PhaseStatus = "pending" | "running" | "completed" | "failed";
 
 /**
  * Upload status for file uploads

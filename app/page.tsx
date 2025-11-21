@@ -3,6 +3,7 @@ import { FeaturesSection } from "@/components/home/features-section";
 import { Footer } from "@/components/home/footer";
 import { Header } from "@/components/home/header";
 import { HeroSection } from "@/components/home/hero-section";
+import { PricingSection } from "@/components/home/pricing-section";
 
 export default function Home() {
   return (
@@ -10,6 +11,7 @@ export default function Home() {
       <Header />
       <HeroSection />
       <FeaturesSection />
+      <PricingSection />
       <CtaSection />
       <Footer />
     </div>

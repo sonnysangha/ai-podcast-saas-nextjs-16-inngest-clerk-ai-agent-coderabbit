@@ -84,35 +84,51 @@ export async function generateYouTubeTimestamps(
 
   // Prompt GPT to create YouTube-optimized chapter titles
   // Goal: More engaging than AssemblyAI's auto-generated headlines
-  const prompt = `You are a YouTube content expert. I have ${
+  const prompt = `You are a YouTube content optimization expert. Create SHORT CHAPTER TITLES for a video.
+
+CRITICAL INSTRUCTIONS:
+- DO NOT copy the transcript text
+- DO NOT write full sentences
+- Create 3-6 word TITLES only
+- Think of these as chapter headings, not subtitles
+
+I have ${
     chapterData.length
-  } chapters from a podcast with their timestamps and descriptions. Your task is to create punchy, engaging, clickable 3-6 word titles for each chapter that will work as YouTube timestamps.
+  } chapters with timestamps. For each one, create a SHORT, CATCHY TITLE.
 
 CHAPTERS:
 ${chapterData
-  .map((ch) => `[${ch.timestamp}s] ${ch.headline} - ${ch.summary}`)
-  .join("\n")}
+  .map(
+    (ch, idx) =>
+      `Chapter ${idx}: [${ch.timestamp}s]\nContext: ${ch.headline}\nSummary: ${ch.summary}`
+  )
+  .join("\n\n")}
 
-TASK:
-Create a YouTube-friendly title for each chapter that:
-- Is 3-6 words long
-- Is punchy and clickable
-- Makes viewers want to click
-- Captures the essence of that chapter
-- Uses engaging language (e.g., "How to...", "The secret to...", "Why X matters", etc.)
+YOUR TASK:
+Transform each chapter into a 3-6 word YouTube chapter title.
 
-Return a JSON object with a "titles" array where each item has:
-- "index": the chapter index (0, 1, 2...)
-- "title": the YouTube-friendly title
+EXAMPLES OF GOOD TITLES:
+✓ "Introduction to N8N Automation" (5 words, descriptive title)
+✓ "Setting Up Your Account" (4 words, action-oriented)
+✓ "Telegram Bot Creation" (3 words, clear and concise)
+✓ "Building Multi-Agent Workflows" (3 words, technical but clear)
+✓ "Testing the News Agent" (4 words, specific feature)
 
-Example:
+EXAMPLES OF BAD RESPONSES (DO NOT DO THIS):
+✗ "Today we are diving into n8n one of the most underrated" (transcript excerpt)
+✗ "One click setup with n8n com allows you to get" (full sentence from transcript)
+✗ "So we want to give Sarah some instructions so she knows" (conversational transcript)
+
+Return ONLY valid JSON in this exact format:
 {
   "titles": [
-    {"index": 0, "title": "Welcome and Intro"},
-    {"index": 1, "title": "Building Financial Security"},
-    {"index": 2, "title": "From Debt to Wealth"}
+    {"index": 0, "title": "Introduction to N8N Automation"},
+    {"index": 1, "title": "Setting Up Your Account"},
+    {"index": 2, "title": "Building Your First Bot"}
   ]
-}`;
+}
+
+Remember: Create TITLES, not transcript excerpts!`;
 
   // Bind OpenAI method to preserve `this` context for step.ai.wrap
   const createCompletion = openai.chat.completions.create.bind(
@@ -125,11 +141,43 @@ Example:
     createCompletion,
     {
       model: "gpt-5-mini",
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "youtube_chapter_titles",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              titles: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    index: {
+                      type: "number",
+                      description: "Chapter index",
+                    },
+                    title: {
+                      type: "string",
+                      description: "Short, catchy chapter title (3-6 words)",
+                    },
+                  },
+                  required: ["index", "title"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["titles"],
+            additionalProperties: false,
+          },
+        },
+      },
       messages: [
         {
           role: "system",
           content:
-            "You are a YouTube content expert who creates engaging, clickable titles for video chapters. You make titles punchy and compelling while staying true to the content.",
+            "You are a YouTube content expert who creates SHORT, DESCRIPTIVE TITLES for video chapters. CRITICAL: You create TITLES (like 'Introduction to AI'), NOT transcript text or full sentences. Always respond with valid JSON.",
         },
         {
           role: "user",
@@ -142,19 +190,33 @@ Example:
 
   const content = response.choices[0]?.message?.content || '{"titles":[]}';
 
+  console.log("Raw GPT response:", content.substring(0, 500));
+
   // Parse GPT's JSON response
   let aiTitles: { index: number; title: string }[] = [];
   try {
     const parsed = JSON.parse(content);
     aiTitles = parsed.titles || [];
+    console.log(`Successfully parsed ${aiTitles.length} AI-generated titles`);
+    if (aiTitles.length > 0) {
+      console.log("First 3 AI titles:", aiTitles.slice(0, 3));
+    }
   } catch (error) {
     // Fallback: Use original AssemblyAI headlines if GPT response is malformed
     console.error("Failed to parse AI titles, using original headlines", error);
+    console.error("Attempted to parse:", content);
   }
 
   // Combine AI-enhanced titles with AssemblyAI timing
   const aiTimestamps = chapterData.map((chapter) => {
     const aiTitle = aiTitles.find((t) => t.index === chapter.index);
+
+    // Check if we're using fallback
+    if (!aiTitle) {
+      console.warn(
+        `No AI title found for chapter ${chapter.index}, using fallback: "${chapter.headline}"`
+      );
+    }
 
     return {
       timestamp: chapter.timestamp,
@@ -164,7 +226,7 @@ Example:
   });
 
   console.log(
-    `Generated ${aiTimestamps.length} YouTube timestamps:`,
+    `Generated ${aiTimestamps.length} YouTube timestamps (first 3):`,
     aiTimestamps.slice(0, 3).map((t) => `${t.timestamp}s: ${t.description}`)
   );
 

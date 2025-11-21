@@ -1,15 +1,15 @@
 /**
  * Convex Mutations and Queries for Project Management
- * 
+ *
  * This module handles all database operations for podcast projects.
  * Convex provides real-time reactivity - when these mutations run, all subscribed
  * clients automatically receive updates without polling or manual cache invalidation.
- * 
+ *
  * Architecture Pattern:
  * - Mutations: Write operations called from Next.js server actions or Inngest functions
  * - Queries: Read operations that React components subscribe to for real-time updates
  * - All functions are fully type-safe with automatic TypeScript generation
- * 
+ *
  * Real-time Flow:
  * 1. Inngest calls mutation (e.g., updateJobStatus)
  * 2. Convex updates database
@@ -22,15 +22,15 @@ import { mutation, query } from "./_generated/server";
 
 /**
  * Creates a new project record after file upload
- * 
+ *
  * Called by: Next.js server action after Vercel Blob upload succeeds
- * 
+ *
  * Flow:
  * 1. User uploads file -> Vercel Blob
  * 2. Server action creates project in Convex
  * 3. Server action triggers Inngest workflow
  * 4. Inngest updates this project as processing proceeds
- * 
+ *
  * Design Decision: Initialize with all jobStatus as "pending" to avoid null checks in UI
  */
 export const createProject = mutation({
@@ -47,7 +47,7 @@ export const createProject = mutation({
     const now = Date.now();
 
     // Insert new project with initial "uploaded" status
-    // All optional fields (transcript, summary, etc.) are omitted initially
+    // Initialize jobStatus to "pending" so UI can track progress from the start
     const projectId = await ctx.db.insert("projects", {
       userId: args.userId,
       inputUrl: args.inputUrl,
@@ -57,16 +57,9 @@ export const createProject = mutation({
       fileFormat: args.fileFormat,
       mimeType: args.mimeType,
       status: "uploaded",
-      // Initialize all jobs as pending for UI state tracking
       jobStatus: {
         transcription: "pending",
-        keyMoments: "pending",
-        summary: "pending",
-        captions: "pending",
-        social: "pending",
-        titles: "pending",
-        hashtags: "pending",
-        youtubeTimestamps: "pending",
+        contentGeneration: "pending",
       },
       createdAt: now,
       updatedAt: now,
@@ -78,12 +71,12 @@ export const createProject = mutation({
 
 /**
  * Updates the overall project status
- * 
+ *
  * Called by: Inngest workflow at key milestones
  * - "uploaded" -> "processing" when workflow starts
  * - "processing" -> "completed" when all jobs finish successfully
  * - Any status -> "failed" on error
- * 
+ *
  * Real-time Impact: UI components subscribed to this project instantly reflect the new status
  */
 export const updateProjectStatus = mutation({
@@ -112,70 +105,15 @@ export const updateProjectStatus = mutation({
 });
 
 /**
- * Updates individual job status within a project
- * 
- * Called by: Inngest step functions before and after each AI generation task
- * 
- * Granular Status Tracking Pattern:
- * - Each job (transcription, summary, keyMoments, etc.) has independent status
- * - Enables detailed progress visualization in the UI
- * - Allows parallel job execution without losing per-job state
- * 
- * Example Flow:
- * 1. Transcription: pending -> running -> completed
- * 2. Summary, KeyMoments, etc. (in parallel): pending -> running -> completed
- * 
- * Design Decision: Use mutation for each job update (not batched) so UI updates in real-time
- */
-export const updateJobStatus = mutation({
-  args: {
-    projectId: v.id("projects"),
-    job: v.union(
-      v.literal("transcription"),
-      v.literal("keyMoments"),
-      v.literal("summary"),
-      v.literal("captions"),
-      v.literal("social"),
-      v.literal("titles"),
-      v.literal("hashtags"),
-      v.literal("youtubeTimestamps")
-    ),
-    status: v.union(
-      v.literal("pending"),
-      v.literal("running"),
-      v.literal("completed"),
-      v.literal("failed"),
-      v.literal("skipped")
-    ),
-  },
-  handler: async (ctx, args) => {
-    const project = await ctx.db.get(args.projectId);
-    if (!project) {
-      throw new Error("Project not found");
-    }
-
-    // Merge new job status with existing statuses
-    // This preserves other jobs' states when updating a single job
-    await ctx.db.patch(args.projectId, {
-      jobStatus: {
-        ...project.jobStatus,
-        [args.job]: args.status,
-      },
-      updatedAt: Date.now(),
-    });
-  },
-});
-
-/**
  * Saves the transcript from AssemblyAI
- * 
+ *
  * Called by: Inngest transcription step after AssemblyAI completes
- * 
+ *
  * Data Structure:
  * - text: Full transcript as one string
  * - segments: Time-coded chunks with word-level timing
  * - speakers: Speaker diarization data (who said what)
- * 
+ *
  * Design Decision: Store full transcript in Convex (not Blob) for:
  * - Fast querying and display
  * - Real-time updates as transcription completes
@@ -214,6 +152,17 @@ export const saveTranscript = mutation({
           })
         )
       ),
+      chapters: v.optional(
+        v.array(
+          v.object({
+            start: v.number(),
+            end: v.number(),
+            headline: v.string(),
+            summary: v.string(),
+            gist: v.string(),
+          })
+        )
+      ),
     }),
   },
   handler: async (ctx, args) => {
@@ -226,15 +175,63 @@ export const saveTranscript = mutation({
 });
 
 /**
+ * Updates the job status for transcription or content generation phases
+ *
+ * Called by: Inngest workflow to track progress of individual phases
+ * - transcription: "pending" -> "running" -> "completed"/"failed"
+ * - contentGeneration: "pending" -> "running" -> "completed"/"failed"
+ *
+ * Real-time Impact: UI components instantly reflect phase progress
+ */
+export const updateJobStatus = mutation({
+  args: {
+    projectId: v.id("projects"),
+    transcription: v.optional(
+      v.union(
+        v.literal("pending"),
+        v.literal("running"),
+        v.literal("completed"),
+        v.literal("failed")
+      )
+    ),
+    contentGeneration: v.optional(
+      v.union(
+        v.literal("pending"),
+        v.literal("running"),
+        v.literal("completed"),
+        v.literal("failed")
+      )
+    ),
+  },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    const updates: Partial<Doc<"projects">> = {
+      jobStatus: {
+        ...project.jobStatus,
+        ...(args.transcription && { transcription: args.transcription }),
+        ...(args.contentGeneration && { contentGeneration: args.contentGeneration }),
+      },
+      updatedAt: Date.now(),
+    };
+
+    await ctx.db.patch(args.projectId, updates);
+  },
+});
+
+/**
  * Saves all AI-generated content in a single atomic operation
- * 
+ *
  * Called by: Inngest save-to-convex step after all parallel AI jobs complete
- * 
+ *
  * Atomic Batch Update Pattern:
  * - Receives results from 6 parallel AI generation steps
  * - Writes all fields in one mutation for data consistency
  * - UI subscribers receive one update with all new data at once
- * 
+ *
  * Design Decision: Single mutation vs. multiple mutations
  * - Pro: Atomic - all content appears together, no partial states
  * - Pro: One database transaction = faster and more consistent
@@ -311,54 +308,15 @@ export const saveGeneratedContent = mutation({
 });
 
 /**
- * Updates processing metrics for analytics
- * 
- * Called by: Inngest workflow (optional - for tracking costs and performance)
- * 
- * Metrics Use Cases:
- * - Track API costs (tokens used)
- * - Measure processing time for optimization
- * - Identify bottlenecks in the pipeline
- * - Calculate per-project costs for billing
- */
-export const updateMetrics = mutation({
-  args: {
-    projectId: v.id("projects"),
-    metrics: v.object({
-      totalProcessingTime: v.optional(v.number()),
-      transcriptionTokens: v.optional(v.number()),
-      generationTokens: v.optional(v.number()),
-    }),
-  },
-  handler: async (ctx, args) => {
-    const project = await ctx.db.get(args.projectId);
-    if (!project) {
-      throw new Error("Project not found");
-    }
-
-    // Merge new metrics with existing ones (additive updates)
-    const updatedMetrics = {
-      ...project.metrics,
-      ...args.metrics,
-    };
-
-    await ctx.db.patch(args.projectId, {
-      metrics: updatedMetrics,
-      updatedAt: Date.now(),
-    });
-  },
-});
-
-/**
  * Records an error when processing fails
- * 
+ *
  * Called by: Inngest step functions on exception
- * 
+ *
  * Error Handling Strategy:
  * - Set project status to "failed" to stop further processing
  * - Store error details for debugging and user support
  * - Preserve all successfully completed data (partial results still viewable)
- * 
+ *
  * Design Decision: Don't delete project on failure - allow user to retry or view partial results
  */
 export const recordError = mutation({
@@ -366,7 +324,12 @@ export const recordError = mutation({
     projectId: v.id("projects"),
     message: v.string(),
     step: v.string(),
-    details: v.optional(v.any()),
+    details: v.optional(
+      v.object({
+        statusCode: v.optional(v.number()),
+        stack: v.optional(v.string()),
+      })
+    ),
   },
   handler: async (ctx, args) => {
     // Mark project as failed and store error details
@@ -384,10 +347,36 @@ export const recordError = mutation({
 });
 
 /**
+ * Saves errors for individual generation jobs
+ *
+ * Called by: Inngest workflow when generation steps fail
+ * Allows UI to show which specific jobs failed and enable retry
+ */
+export const saveJobErrors = mutation({
+  args: {
+    projectId: v.id("projects"),
+    jobErrors: v.object({
+      keyMoments: v.optional(v.string()),
+      summary: v.optional(v.string()),
+      socialPosts: v.optional(v.string()),
+      titles: v.optional(v.string()),
+      hashtags: v.optional(v.string()),
+      youtubeTimestamps: v.optional(v.string()),
+    }),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.projectId, {
+      jobErrors: args.jobErrors,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/**
  * Retrieves a single project by ID
- * 
+ *
  * Used by: Project detail page (real-time subscription)
- * 
+ *
  * Real-time Pattern:
  * - React component: const project = useQuery(api.projects.getProject, { projectId })
  * - Convex automatically re-runs this query when the project updates
@@ -406,14 +395,14 @@ export const getProject = query({
 
 /**
  * Lists all projects for a user with pagination
- * 
+ *
  * Used by: Projects dashboard page
- * 
+ *
  * Pagination Pattern:
  * - Returns { page: [...], continueCursor: "..." } for infinite scroll
  * - Uses index "by_user" for efficient filtering
  * - Sorted by newest first (order("desc"))
- * 
+ *
  * Real-time Behavior:
  * - As new projects are created, they automatically appear in the list
  * - As projects complete, their status updates instantly
@@ -443,6 +432,83 @@ export const listUserProjects = query({
     return await query.paginate({
       numItems,
       cursor: args.paginationOpts?.cursor ?? null,
+    });
+  },
+});
+
+/**
+ * Deletes a project after validating user ownership
+ *
+ * Called by: Server action after user confirms deletion
+ *
+ * Security:
+ * - Validates that the requesting user owns the project
+ * - Returns inputUrl so server action can clean up Vercel Blob
+ *
+ * Design Decision: Delete from Convex, let server action handle Blob cleanup
+ * - Allows server action to handle Blob deletion errors gracefully
+ * - Convex deletion is atomic and can't partially fail
+ */
+export const deleteProject = mutation({
+  args: {
+    projectId: v.id("projects"),
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Fetch project to validate ownership and get inputUrl
+    const project = await ctx.db.get(args.projectId);
+
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    // Security check: ensure user owns this project
+    if (project.userId !== args.userId) {
+      throw new Error("Unauthorized: You don't own this project");
+    }
+
+    // Delete the project from database
+    await ctx.db.delete(args.projectId);
+
+    // Return inputUrl so server action can delete from Blob storage
+    return { inputUrl: project.inputUrl };
+  },
+});
+
+/**
+ * Updates the display name of a project
+ *
+ * Called by: Server action when user edits project title
+ *
+ * Security:
+ * - Validates that the requesting user owns the project
+ *
+ * Real-time Impact:
+ * - All UI components displaying this project instantly update
+ */
+export const updateProjectDisplayName = mutation({
+  args: {
+    projectId: v.id("projects"),
+    userId: v.string(),
+    displayName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Fetch project to validate ownership
+    const project = await ctx.db.get(args.projectId);
+
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    // Security check: ensure user owns this project
+    if (project.userId !== args.userId) {
+      throw new Error("Unauthorized: You don't own this project");
+    }
+
+    // Update display name
+    await ctx.db.patch(args.projectId, {
+      displayName: args.displayName.trim(),
+      updatedAt: Date.now(),
     });
   },
 });

@@ -1,9 +1,9 @@
 /**
  * Convex Database Schema
- * 
+ *
  * Defines the structure of all data stored in Convex for the AI Podcast Assistant.
  * Convex provides real-time reactivity, automatic TypeScript types, and ACID transactions.
- * 
+ *
  * Key Design Decisions:
  * - Single "projects" table stores all podcast processing data
  * - Denormalized structure (all data in one document) for real-time updates and atomic writes
@@ -22,6 +22,7 @@ export default defineSchema({
     // Input file metadata - stored in Vercel Blob
     inputUrl: v.string(), // Vercel Blob URL (public access)
     fileName: v.string(), // Original filename for display
+    displayName: v.optional(v.string()), // User-editable display name (defaults to fileName in UI)
     fileSize: v.number(), // Bytes - used for billing/limits
     fileDuration: v.optional(v.number()), // Seconds - extracted or estimated
     fileFormat: v.string(), // Extension (mp3, mp4, wav, etc.)
@@ -36,67 +37,25 @@ export default defineSchema({
       v.literal("failed")
     ),
 
-    // Granular job status tracking - enables real-time progress UI
-    // Each AI generation task updates its own status independently
-    jobStatus: v.object({
-      transcription: v.union(
-        v.literal("pending"),
-        v.literal("running"),
-        v.literal("completed"),
-        v.literal("failed")
-      ),
-      keyMoments: v.union(
-        v.literal("pending"),
-        v.literal("running"),
-        v.literal("completed"),
-        v.literal("failed")
-      ),
-      summary: v.union(
-        v.literal("pending"),
-        v.literal("running"),
-        v.literal("completed"),
-        v.literal("failed")
-      ),
-      captions: v.union(
-        v.literal("pending"),
-        v.literal("running"),
-        v.literal("completed"),
-        v.literal("failed")
-      ),
-      social: v.optional(
-        v.union(
-          v.literal("pending"),
-          v.literal("running"),
-          v.literal("completed"),
-          v.literal("failed")
-        )
-      ),
-      titles: v.union(
-        v.literal("pending"),
-        v.literal("running"),
-        v.literal("completed"),
-        v.literal("failed")
-      ),
-      hashtags: v.union(
-        v.literal("pending"),
-        v.literal("running"),
-        v.literal("completed"),
-        v.literal("failed")
-      ),
-      youtubeTimestamps: v.union(
-        v.literal("pending"),
-        v.literal("running"),
-        v.literal("completed"),
-        v.literal("failed")
-      ),
-    }),
-
-    // Processing metrics - useful for analytics and optimization
-    metrics: v.optional(
+    // Granular job status tracking - shows progress of individual processing steps
+    jobStatus: v.optional(
       v.object({
-        totalProcessingTime: v.optional(v.number()), // Total seconds
-        transcriptionTokens: v.optional(v.number()), // AssemblyAI usage
-        generationTokens: v.optional(v.number()), // OpenAI token count
+        transcription: v.optional(
+          v.union(
+            v.literal("pending"),
+            v.literal("running"),
+            v.literal("completed"),
+            v.literal("failed")
+          )
+        ),
+        contentGeneration: v.optional(
+          v.union(
+            v.literal("pending"),
+            v.literal("running"),
+            v.literal("completed"),
+            v.literal("failed")
+          )
+        ),
       })
     ),
 
@@ -112,6 +71,18 @@ export default defineSchema({
             stack: v.optional(v.string()), // Stack trace for debugging
           })
         ),
+      })
+    ),
+
+    // Per-job error tracking - stores errors for individual generation steps
+    jobErrors: v.optional(
+      v.object({
+        keyMoments: v.optional(v.string()),
+        summary: v.optional(v.string()),
+        socialPosts: v.optional(v.string()),
+        titles: v.optional(v.string()),
+        hashtags: v.optional(v.string()),
+        youtubeTimestamps: v.optional(v.string()),
       })
     ),
 
@@ -148,6 +119,18 @@ export default defineSchema({
             })
           )
         ),
+        // Auto-generated chapters from AssemblyAI
+        chapters: v.optional(
+          v.array(
+            v.object({
+              start: v.number(), // Start time in milliseconds
+              end: v.number(), // End time in milliseconds
+              headline: v.string(), // Chapter title
+              summary: v.string(), // Chapter summary
+              gist: v.string(), // Short gist
+            })
+          )
+        ),
       })
     ),
 
@@ -170,14 +153,6 @@ export default defineSchema({
         bullets: v.array(v.string()), // 5-7 key points
         insights: v.array(v.string()), // 3-5 actionable takeaways
         tldr: v.string(), // One sentence hook
-      })
-    ),
-
-    // Captions for accessibility and SEO
-    captions: v.optional(
-      v.object({
-        srtUrl: v.string(), // Vercel Blob URL to .srt file
-        rawText: v.string(), // Plain text version
       })
     ),
 

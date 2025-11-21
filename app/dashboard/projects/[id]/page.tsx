@@ -2,8 +2,14 @@
 
 import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
-import { Loader2 } from "lucide-react";
-import { use, useEffect, useState } from "react";
+import { AlertCircle, Edit2, Loader2, Save, Trash2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { use, useState } from "react";
+import { toast } from "sonner";
+import {
+  deleteProjectAction,
+  updateDisplayNameAction,
+} from "@/app/actions/projects";
 import { ProcessingFlow } from "@/components/processing-flow";
 import { TabContent } from "@/components/project-detail/tab-content";
 import { ProjectStatusCard } from "@/components/project-status-card";
@@ -14,12 +20,12 @@ import { SummaryTab } from "@/components/project-tabs/summary-tab";
 import { TitlesTab } from "@/components/project-tabs/titles-tab";
 import { TranscriptTab } from "@/components/project-tabs/transcript-tab";
 import { YouTubeTimestampsTab } from "@/components/project-tabs/youtube-timestamps-tab";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { useProjectRealtime } from "@/hooks/use-project-realtime";
-import { calculateGenerationStatus } from "@/lib/status-utils";
 import type { PhaseStatus } from "@/lib/types";
 
 export default function ProjectDetailPage({
@@ -28,38 +34,76 @@ export default function ProjectDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { userId } = useAuth();
+  const router = useRouter();
   const { id } = use(params);
   const projectId = id as Id<"projects">;
 
+  // Convex is the single source of truth - real-time updates via subscription
   const project = useQuery(api.projects.getProject, { projectId });
-  const { transcriptionStatus, generationStatus, hasRealtimeUpdates } =
-    useProjectRealtime(projectId);
 
-  const [localTranscriptionStatus, setLocalTranscriptionStatus] =
-    useState<PhaseStatus>("pending");
-  const [localGenerationStatus, setLocalGenerationStatus] =
-    useState<PhaseStatus>("pending");
+  // Edit state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedName, setEditedName] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Sync realtime status
-  useEffect(() => {
-    setLocalTranscriptionStatus(transcriptionStatus);
-    setLocalGenerationStatus(generationStatus);
-  }, [transcriptionStatus, generationStatus]);
+  // Get status from Convex jobStatus (initialized on project creation)
+  const transcriptionStatus: PhaseStatus =
+    project?.jobStatus?.transcription || "pending";
+  const generationStatus: PhaseStatus =
+    project?.jobStatus?.contentGeneration || "pending";
 
-  // Tutorial: Fallback to Convex job status when realtime updates aren't available
-  // This ensures the UI always shows accurate status even if realtime connection drops
-  useEffect(() => {
-    if (hasRealtimeUpdates || !project) return;
+  // Handle edit title
+  const handleStartEdit = () => {
+    setEditedName(project?.displayName || project?.fileName || "");
+    setIsEditing(true);
+  };
 
-    if (project.jobStatus?.transcription === "running") {
-      setLocalTranscriptionStatus("running");
-    } else if (project.jobStatus?.transcription === "completed") {
-      setLocalTranscriptionStatus("completed");
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditedName("");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editedName.trim()) {
+      toast.error("Project name cannot be empty");
+      return;
     }
 
-    const generationStatus = calculateGenerationStatus(project.jobStatus);
-    setLocalGenerationStatus(generationStatus);
-  }, [project, hasRealtimeUpdates]);
+    setIsSaving(true);
+    try {
+      await updateDisplayNameAction(projectId, editedName);
+      toast.success("Project name updated");
+      setIsEditing(false);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update name",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle delete
+  const handleDelete = async () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this project? This action cannot be undone.",
+    );
+
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteProjectAction(projectId);
+      toast.success("Project deleted");
+      router.push("/dashboard/projects");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete project",
+      );
+      setIsDeleting(false);
+    }
+  };
 
   if (!project) {
     return (
@@ -88,12 +132,68 @@ export default function ProjectDetailPage({
   const isProcessing = project.status === "processing";
   const isCompleted = project.status === "completed";
   const hasFailed = project.status === "failed";
-  const showGenerating = isProcessing && localGenerationStatus === "running";
+  const showGenerating = isProcessing && generationStatus === "running";
 
   return (
     <div className="container max-w-6xl mx-auto py-10 px-4">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Project Details</h1>
+      {/* Header with title and actions */}
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          {isEditing ? (
+            <div className="flex items-center gap-2">
+              <Input
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                className="text-2xl font-bold h-auto py-2"
+                placeholder="Project name"
+                autoFocus
+                disabled={isSaving}
+              />
+              <Button size="sm" onClick={handleSaveEdit} disabled={isSaving}>
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCancelEdit}
+                disabled={isSaving}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-bold break-words">
+                {project.displayName || project.fileName}
+              </h1>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {!isEditing && (
+            <Button variant="outline" size="sm" onClick={handleStartEdit}>
+              <Edit2 className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+          )}
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleDelete}
+            disabled={isDeleting}
+          >
+            {isDeleting ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Trash2 className="h-4 w-4 mr-2" />
+            )}
+            Delete
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6">
@@ -101,8 +201,8 @@ export default function ProjectDetailPage({
 
         {isProcessing && (
           <ProcessingFlow
-            transcriptionStatus={localTranscriptionStatus}
-            generationStatus={localGenerationStatus}
+            transcriptionStatus={transcriptionStatus}
+            generationStatus={generationStatus}
             fileDuration={project.fileDuration}
             createdAt={project.createdAt}
           />
@@ -127,26 +227,59 @@ export default function ProjectDetailPage({
         {(showGenerating || isCompleted) && (
           <Tabs defaultValue="summary" className="w-full">
             <TabsList className="flex flex-col md:flex-row md:inline-flex w-full md:w-auto h-auto">
-              <TabsTrigger value="summary" className="w-full md:w-auto">
+              <TabsTrigger
+                value="summary"
+                className="w-full md:w-auto flex items-center gap-2"
+              >
                 Summary
+                {project.jobErrors?.summary && (
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                )}
               </TabsTrigger>
-              <TabsTrigger value="moments" className="w-full md:w-auto">
+              <TabsTrigger
+                value="moments"
+                className="w-full md:w-auto flex items-center gap-2"
+              >
                 Key Moments
+                {project.jobErrors?.keyMoments && (
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                )}
               </TabsTrigger>
               <TabsTrigger
                 value="youtube-timestamps"
-                className="w-full md:w-auto"
+                className="w-full md:w-auto flex items-center gap-2"
               >
                 YouTube Timestamps
+                {project.jobErrors?.youtubeTimestamps && (
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                )}
               </TabsTrigger>
-              <TabsTrigger value="social" className="w-full md:w-auto">
+              <TabsTrigger
+                value="social"
+                className="w-full md:w-auto flex items-center gap-2"
+              >
                 Social Posts
+                {project.jobErrors?.socialPosts && (
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                )}
               </TabsTrigger>
-              <TabsTrigger value="hashtags" className="w-full md:w-auto">
+              <TabsTrigger
+                value="hashtags"
+                className="w-full md:w-auto flex items-center gap-2"
+              >
                 Hashtags
+                {project.jobErrors?.hashtags && (
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                )}
               </TabsTrigger>
-              <TabsTrigger value="titles" className="w-full md:w-auto">
+              <TabsTrigger
+                value="titles"
+                className="w-full md:w-auto flex items-center gap-2"
+              >
                 Titles
+                {project.jobErrors?.titles && (
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                )}
               </TabsTrigger>
               <TabsTrigger value="transcript" className="w-full md:w-auto">
                 Transcript
@@ -154,16 +287,30 @@ export default function ProjectDetailPage({
             </TabsList>
 
             <TabsContent value="summary" className="space-y-4">
-              <TabContent isLoading={showGenerating} data={project.summary}>
-                {project.summary && <SummaryTab summary={project.summary} />}
+              <TabContent
+                isLoading={showGenerating}
+                data={project.summary}
+                error={project.jobErrors?.summary}
+              >
+                <SummaryTab
+                  projectId={projectId}
+                  summary={project.summary}
+                  error={project.jobErrors?.summary}
+                />
               </TabContent>
             </TabsContent>
 
             <TabsContent value="moments" className="space-y-4">
-              <TabContent isLoading={showGenerating} data={project.keyMoments}>
-                {project.keyMoments && (
-                  <KeyMomentsTab keyMoments={project.keyMoments} />
-                )}
+              <TabContent
+                isLoading={showGenerating}
+                data={project.keyMoments}
+                error={project.jobErrors?.keyMoments}
+              >
+                <KeyMomentsTab
+                  projectId={projectId}
+                  keyMoments={project.keyMoments}
+                  error={project.jobErrors?.keyMoments}
+                />
               </TabContent>
             </TabsContent>
 
@@ -171,34 +318,55 @@ export default function ProjectDetailPage({
               <TabContent
                 isLoading={showGenerating}
                 data={project.youtubeTimestamps}
+                error={project.jobErrors?.youtubeTimestamps}
               >
-                {project.youtubeTimestamps && (
-                  <YouTubeTimestampsTab
-                    timestamps={project.youtubeTimestamps}
-                  />
-                )}
+                <YouTubeTimestampsTab
+                  projectId={projectId}
+                  timestamps={project.youtubeTimestamps}
+                  error={project.jobErrors?.youtubeTimestamps}
+                />
               </TabContent>
             </TabsContent>
 
             <TabsContent value="social" className="space-y-4">
-              <TabContent isLoading={showGenerating} data={project.socialPosts}>
-                {project.socialPosts && (
-                  <SocialPostsTab socialPosts={project.socialPosts} />
-                )}
+              <TabContent
+                isLoading={showGenerating}
+                data={project.socialPosts}
+                error={project.jobErrors?.socialPosts}
+              >
+                <SocialPostsTab
+                  projectId={projectId}
+                  socialPosts={project.socialPosts}
+                  error={project.jobErrors?.socialPosts}
+                />
               </TabContent>
             </TabsContent>
 
             <TabsContent value="hashtags" className="space-y-4">
-              <TabContent isLoading={showGenerating} data={project.hashtags}>
-                {project.hashtags && (
-                  <HashtagsTab hashtags={project.hashtags} />
-                )}
+              <TabContent
+                isLoading={showGenerating}
+                data={project.hashtags}
+                error={project.jobErrors?.hashtags}
+              >
+                <HashtagsTab
+                  projectId={projectId}
+                  hashtags={project.hashtags}
+                  error={project.jobErrors?.hashtags}
+                />
               </TabContent>
             </TabsContent>
 
             <TabsContent value="titles" className="space-y-4">
-              <TabContent isLoading={showGenerating} data={project.titles}>
-                {project.titles && <TitlesTab titles={project.titles} />}
+              <TabContent
+                isLoading={showGenerating}
+                data={project.titles}
+                error={project.jobErrors?.titles}
+              >
+                <TitlesTab
+                  projectId={projectId}
+                  titles={project.titles}
+                  error={project.jobErrors?.titles}
+                />
               </TabContent>
             </TabsContent>
 

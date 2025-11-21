@@ -18,7 +18,9 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
+import { del } from "@vercel/blob";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { inngest } from "@/inngest/client";
 import { convex } from "@/lib/convex-client";
 
@@ -103,5 +105,101 @@ export async function createProjectAction(input: CreateProjectInput) {
   } catch (error) {
     console.error("Error creating project:", error);
     throw error; // Re-throw for client error handling
+  }
+}
+
+/**
+ * Delete project and associated Blob storage
+ * 
+ * Flow:
+ * 1. Validate user authentication
+ * 2. Call Convex mutation to delete project (validates ownership)
+ * 3. Delete file from Vercel Blob storage
+ * 
+ * Error Handling:
+ * - Throws on auth failure
+ * - Throws if project not found or user doesn't own it
+ * - Logs but doesn't throw on Blob deletion failure (already deleted from DB)
+ * 
+ * @param projectId - Convex project ID
+ * @returns Success response
+ * @throws Error if authentication fails or user doesn't own project
+ */
+export async function deleteProjectAction(projectId: Id<"projects">) {
+  try {
+    // Authenticate user via Clerk
+    const { userId } = await auth();
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+
+    // Delete from Convex (validates ownership, returns inputUrl)
+    const result = await convex.mutation(api.projects.deleteProject, {
+      projectId,
+      userId,
+    });
+
+    // Delete file from Vercel Blob
+    // If this fails, we've already deleted from DB - log but don't throw
+    try {
+      await del(result.inputUrl);
+    } catch (blobError) {
+      console.error("Failed to delete file from Blob storage:", blobError);
+      // Don't throw - project is already deleted from database
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting project:", error);
+    throw error;
+  }
+}
+
+/**
+ * Update project display name
+ * 
+ * Flow:
+ * 1. Validate user authentication
+ * 2. Call Convex mutation to update displayName (validates ownership)
+ * 
+ * Real-time Impact:
+ * - All subscribed components instantly see the new name
+ * 
+ * @param projectId - Convex project ID
+ * @param displayName - New display name
+ * @returns Success response
+ * @throws Error if authentication fails or user doesn't own project
+ */
+export async function updateDisplayNameAction(
+  projectId: Id<"projects">,
+  displayName: string
+) {
+  try {
+    // Authenticate user via Clerk
+    const { userId } = await auth();
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+
+    // Validate display name
+    if (!displayName || displayName.trim().length === 0) {
+      throw new Error("Display name cannot be empty");
+    }
+
+    if (displayName.length > 200) {
+      throw new Error("Display name is too long (max 200 characters)");
+    }
+
+    // Update in Convex (validates ownership)
+    await convex.mutation(api.projects.updateProjectDisplayName, {
+      projectId,
+      userId,
+      displayName: displayName.trim(),
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating display name:", error);
+    throw error;
   }
 }
