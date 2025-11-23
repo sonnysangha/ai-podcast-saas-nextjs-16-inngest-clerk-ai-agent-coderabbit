@@ -423,9 +423,11 @@ export const listUserProjects = query({
 
     // Use index for fast filtering by userId
     // order("desc") sorts by _creationTime descending (newest first)
+    // Filter out soft-deleted projects
     const query = ctx.db
       .query("projects")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("deletedAt"), undefined))
       .order("desc");
 
     // Built-in pagination with cursor support
@@ -437,17 +439,53 @@ export const listUserProjects = query({
 });
 
 /**
- * Deletes a project after validating user ownership
+ * Gets project count for a user (for quota enforcement)
+ *
+ * Called by: Upload validation before allowing new project creation
+ *
+ * Counting Logic:
+ * - includeDeleted = true: Count ALL projects ever created (for FREE tier)
+ * - includeDeleted = false: Count only active projects (for PRO tier)
+ *
+ * This allows FREE users to be limited to 3 total projects ever (can't game the system),
+ * while PRO users can delete to free up slots.
+ */
+export const getUserProjectCount = query({
+  args: {
+    userId: v.string(),
+    includeDeleted: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    // Query all projects by this user
+    const projects = await ctx.db
+      .query("projects")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    // Filter based on includeDeleted flag
+    if (args.includeDeleted) {
+      // Count all projects (including soft-deleted ones)
+      return projects.length;
+    } else {
+      // Count only active projects (exclude soft-deleted)
+      return projects.filter((p) => !p.deletedAt).length;
+    }
+  },
+});
+
+/**
+ * Soft-deletes a project after validating user ownership
  *
  * Called by: Server action after user confirms deletion
  *
- * Security:
- * - Validates that the requesting user owns the project
+ * Soft Delete Pattern:
+ * - Sets deletedAt timestamp instead of hard delete
+ * - Allows FREE tier counting to include deleted projects
+ * - PRO users don't see deleted projects in their count
  * - Returns inputUrl so server action can clean up Vercel Blob
  *
- * Design Decision: Delete from Convex, let server action handle Blob cleanup
- * - Allows server action to handle Blob deletion errors gracefully
- * - Convex deletion is atomic and can't partially fail
+ * Security:
+ * - Validates that the requesting user owns the project
  */
 export const deleteProject = mutation({
   args: {
@@ -467,8 +505,12 @@ export const deleteProject = mutation({
       throw new Error("Unauthorized: You don't own this project");
     }
 
-    // Delete the project from database
-    await ctx.db.delete(args.projectId);
+    // Soft delete: set deletedAt timestamp instead of hard delete
+    // This preserves the record for FREE tier counting
+    await ctx.db.patch(args.projectId, {
+      deletedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
 
     // Return inputUrl so server action can delete from Blob storage
     return { inputUrl: project.inputUrl };

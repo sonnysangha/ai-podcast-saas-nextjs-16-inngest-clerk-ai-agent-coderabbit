@@ -1,10 +1,14 @@
 "use client";
 
+import { Protect } from "@clerk/nextjs";
+import { generateMissingFeatures } from "@/app/actions/generate-missing-features";
 import { ErrorRetryCard } from "@/components/project-detail/error-retry-card";
+import { UpgradePrompt } from "@/components/project-detail/upgrade-prompt";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Id } from "@/convex/_generated/dataModel";
-import { Check, Copy } from "lucide-react";
+import { FEATURES } from "@/lib/tier-config";
+import { Check, Copy, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { SocialIcon } from "react-social-icons";
 import { toast } from "sonner";
@@ -67,20 +71,69 @@ const PLATFORMS = [
   },
 ];
 
-export function SocialPostsTab({ projectId, socialPosts, error }: SocialPostsTabProps) {
+export function SocialPostsTab({
+  projectId,
+  socialPosts,
+  error,
+}: SocialPostsTabProps) {
   const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   if (error) {
-    return <ErrorRetryCard projectId={projectId} job="socialPosts" errorMessage={error} />;
+    return (
+      <ErrorRetryCard
+        projectId={projectId}
+        job="socialPosts"
+        errorMessage={error}
+      />
+    );
   }
+
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    try {
+      const result = await generateMissingFeatures(projectId);
+      toast.success(result.message);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to generate features",
+      );
+      setIsGenerating(false);
+    }
+  };
 
   if (!socialPosts) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center text-muted-foreground">
-          No social posts available
-        </CardContent>
-      </Card>
+      <Protect
+        feature={FEATURES.SOCIAL_POSTS}
+        fallback={
+          <UpgradePrompt
+            feature="Social Posts"
+            featureKey={FEATURES.SOCIAL_POSTS}
+            currentPlan="free"
+          />
+        }
+      >
+        <Card>
+          <CardContent className="py-8 text-center space-y-4">
+            <p className="text-muted-foreground">No social posts available</p>
+            <p className="text-sm text-muted-foreground">
+              It looks like this project was processed before you upgraded.
+            </p>
+            <Button
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              className="gap-2"
+            >
+              <Sparkles className="h-4 w-4" />
+              {isGenerating ? "Generating..." : "Generate All Missing Features"}
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              This will generate all features available in your current plan
+            </p>
+          </CardContent>
+        </Card>
+      </Protect>
     );
   }
 
@@ -92,58 +145,71 @@ export function SocialPostsTab({ projectId, socialPosts, error }: SocialPostsTab
   };
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {PLATFORMS.map((platform) => (
-        <Card
-          key={platform.key}
-          className={`transition-all ${platform.bgColor} border-2 hover:shadow-md`}
-        >
-          <CardContent className="p-6">
-            {/* Header with Icon and Title */}
-            <div className="flex items-start gap-4 mb-4">
-              <div className="shrink-0">
-                <SocialIcon
-                  url={platform.url}
-                  style={{ height: 48, width: 48 }}
-                />
+    <Protect
+      feature={FEATURES.SOCIAL_POSTS}
+      fallback={
+        <UpgradePrompt
+          feature="Social Posts"
+          featureKey={FEATURES.SOCIAL_POSTS}
+          currentPlan="free"
+        />
+      }
+    >
+      <div className="grid gap-4 md:grid-cols-2">
+        {PLATFORMS.map((platform) => (
+          <Card
+            key={platform.key}
+            className={`transition-all ${platform.bgColor} border-2 hover:shadow-md`}
+          >
+            <CardContent className="p-6">
+              {/* Header with Icon and Title */}
+              <div className="flex items-start gap-4 mb-4">
+                <div className="shrink-0">
+                  <SocialIcon
+                    url={platform.url}
+                    style={{ height: 48, width: 48 }}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-lg mb-1">
+                    {platform.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">Ready to post</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    handleCopy(platform.title, socialPosts[platform.key])
+                  }
+                  className="shrink-0"
+                >
+                  {copiedPlatform === platform.title ? (
+                    <>
+                      <Check className="h-4 w-4 mr-1" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4 mr-1" />
+                      Copy
+                    </>
+                  )}
+                </Button>
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-lg mb-1">{platform.title}</h3>
-                <p className="text-sm text-muted-foreground">Ready to post</p>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  handleCopy(platform.title, socialPosts[platform.key])
-                }
-                className="shrink-0"
-              >
-                {copiedPlatform === platform.title ? (
-                  <>
-                    <Check className="h-4 w-4 mr-1" />
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-4 w-4 mr-1" />
-                    Copy
-                  </>
-                )}
-              </Button>
-            </div>
 
-            {/* Post Content */}
-            <div className="relative">
-              <div className="rounded-lg bg-white p-4 text-sm border">
-                <p className="whitespace-pre-wrap leading-relaxed">
-                  {socialPosts[platform.key]}
-                </p>
+              {/* Post Content */}
+              <div className="relative">
+                <div className="rounded-lg bg-white p-4 text-sm border">
+                  <p className="whitespace-pre-wrap leading-relaxed">
+                    {socialPosts[platform.key]}
+                  </p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </Protect>
   );
 }

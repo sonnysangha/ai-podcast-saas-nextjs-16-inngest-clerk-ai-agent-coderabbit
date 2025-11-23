@@ -19,6 +19,9 @@ export default defineSchema({
     // User ownership - links to Clerk user ID
     userId: v.string(),
 
+    // Soft delete timestamp - allows FREE tier to count all projects ever created
+    deletedAt: v.optional(v.number()),
+
     // Input file metadata - stored in Vercel Blob
     inputUrl: v.string(), // Vercel Blob URL (public access)
     fileName: v.string(), // Original filename for display

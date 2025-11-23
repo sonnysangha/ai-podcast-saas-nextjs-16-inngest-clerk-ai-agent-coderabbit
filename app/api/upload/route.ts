@@ -1,79 +1,67 @@
 /**
  * File Upload API Route
- * 
- * Handles podcast file uploads using Vercel Blob's client-side upload pattern.
- * This route generates pre-signed upload URLs for secure, direct-to-blob uploads.
- * 
- * Vercel Blob Upload Pattern:
- * 1. Client requests upload URL from this endpoint
- * 2. This endpoint validates user and returns pre-signed URL
- * 3. Client uploads file directly to Vercel Blob (bypasses Next.js server)
- * 4. On completion, client calls server action to create project
- * 
- * Benefits of This Pattern:
- * - No server memory usage (direct upload)
- * - Progress tracking on client
- * - Handles large files efficiently
- * - No request size limits (uploads bypass API routes)
- * 
- * Security:
- * - Requires authentication (Clerk)
- * - Validates file types (audio/video only)
- * - Enforces size limits
- * - Pre-signed URLs expire quickly
+ *
+ * Generates pre-signed URLs for direct uploads to Vercel Blob.
+ *
+ * Flow:
+ * 1. Client calls validateUploadAction server action (checks plan limits)
+ * 2. If valid, client calls this route to get pre-signed upload URL
+ * 3. Client uploads directly to Vercel Blob using the URL
+ * 4. Client calls createProjectAction to finalize
+ *
+ * Note: Validation happens BEFORE this route is called (via server action).
+ * This route only handles URL generation for the Vercel Blob upload.
  */
 import { type HandleUploadBody, handleUpload } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
-import { apiError, withAuth } from "@/lib/api-utils";
-import { ALLOWED_AUDIO_TYPES, MAX_FILE_SIZE } from "@/lib/constants";
+import { auth } from "@clerk/nextjs/server";
+import { apiError } from "@/lib/api-utils";
+import { ALLOWED_AUDIO_TYPES } from "@/lib/constants";
+import { PLAN_LIMITS } from "@/lib/tier-config";
 
-/**
- * POST /api/upload
- * 
- * Generates pre-signed upload URL for Vercel Blob
- * 
- * Called by: Client's upload() function from @vercel/blob/client
- * Flow: Client -> This route (get URL) -> Client -> Blob (upload)
- */
 export async function POST(request: Request): Promise<NextResponse> {
   try {
-    // Authenticate user via Clerk
-    // Throws NextResponse with 401 if not authenticated
-    await withAuth();
-    
-    // Parse request body (contains file metadata, not file itself)
+    // Authenticate user
+    const authObj = await auth();
+    const { userId, has } = authObj;
+
+    if (!userId) {
+      return apiError("Unauthorized", 401);
+    }
+
+    // Parse Vercel Blob request body
     const body = (await request.json()) as HandleUploadBody;
 
-    // Generate pre-signed upload URL with constraints
+    // Determine user's plan and set file size limit
+    let maxFileSize = PLAN_LIMITS.free.maxFileSize;
+    if (has?.({ plan: "ultra" })) {
+      maxFileSize = PLAN_LIMITS.ultra.maxFileSize;
+    } else if (has?.({ plan: "pro" })) {
+      maxFileSize = PLAN_LIMITS.pro.maxFileSize;
+    }
+
+    // Generate pre-signed upload URL with plan-based constraints
     const jsonResponse = await handleUpload({
       body,
       request,
-      // Configuration callback - runs before URL generation
       onBeforeGenerateToken: async () => ({
-        // Whitelist allowed MIME types (audio/video formats)
         allowedContentTypes: ALLOWED_AUDIO_TYPES,
-        // Add random suffix to prevent filename collisions
         addRandomSuffix: true,
-        // Enforce maximum file size
-        maximumSizeInBytes: MAX_FILE_SIZE,
+        maximumSizeInBytes: maxFileSize,
       }),
-      // Callback after upload completes (client-side)
       onUploadCompleted: async ({ blob }) => {
-        console.log("Blob upload completed:", blob.url);
-        // Note: Project creation happens in server action, not here
+        console.log("Upload completed:", blob.url);
       },
     });
 
-    // Return pre-signed URL and metadata to client
     return NextResponse.json(jsonResponse);
   } catch (error) {
-    // Pass through auth errors (already NextResponse)
     if (error instanceof NextResponse) return error;
-    
+
     console.error("Upload error:", error);
     return apiError(
-      error instanceof Error ? error.message : String(error),
-      400,
+      error instanceof Error ? error.message : "Upload failed",
+      400
     );
   }
 }

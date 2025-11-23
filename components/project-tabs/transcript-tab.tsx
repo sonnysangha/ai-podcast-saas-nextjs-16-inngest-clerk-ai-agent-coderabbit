@@ -15,22 +15,38 @@ interface TranscriptTabProps {
 }
 
 export function TranscriptTab({ transcript }: TranscriptTabProps) {
+  const hasSpeakers = transcript.speakers && transcript.speakers.length > 0;
+
   return (
     <div className="space-y-4">
-      {/* Speaker View (if available) */}
-      {transcript.speakers && transcript.speakers.length > 0 && (
+      {/* Basic Transcript - Available to All */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Full Transcript</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="whitespace-pre-wrap leading-relaxed">
+            {transcript.speakers
+              ? transcript.speakers.map((s) => s.text).join(" ")
+              : "Transcript not available"}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Speaker Diarization - Only show for Ultra users who have it */}
+      {hasSpeakers && (
         <Card>
           <CardHeader>
             <CardTitle>Speaker Dialogue</CardTitle>
             <p className="text-sm text-muted-foreground">
               AssemblyAI identified{" "}
-              {new Set(transcript.speakers.map((s) => s.speaker)).size}{" "}
+              {new Set(transcript.speakers?.map((s) => s.speaker)).size}{" "}
               speaker(s) in this podcast
             </p>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {transcript.speakers.map((utterance) => (
+              {transcript.speakers?.map((utterance) => (
                 <div
                   key={`${utterance.start}-${utterance.speaker}`}
                   className="flex gap-4 items-start"

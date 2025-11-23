@@ -19,10 +19,10 @@ export function TabContent({
     return <TabSkeleton />;
   }
 
-  // Show children if there's data OR if there's an error (error card needs to render)
-  if (!data && !error) {
-    return null;
-  }
-
+  // Always render children to allow upgrade prompts to show
+  // The child component will handle the logic for:
+  // - Locked features (show upgrade prompt)
+  // - No data (show empty state)
+  // - Errors (show error card)
   return <>{children}</>;
 }

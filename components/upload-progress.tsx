@@ -116,7 +116,28 @@ export function UploadProgress({
 
           {/* Error message display */}
           {status === "error" && error && (
-            <p className="text-sm text-destructive">{error}</p>
+            <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4">
+              <div className="flex items-start gap-3">
+                <XCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                <div className="space-y-2 flex-1">
+                  <p className="font-medium text-destructive">Upload Failed</p>
+                  <p className="text-sm text-destructive/90">{error}</p>
+
+                  {/* Helpful hints based on error message */}
+                  {error.includes("plan limit") && (
+                    <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-destructive/20">
+                      💡 Upgrade your plan to upload larger files or more
+                      projects
+                    </p>
+                  )}
+                  {error.includes("Authentication") && (
+                    <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-destructive/20">
+                      💡 Try refreshing the page or signing in again
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </CardContent>

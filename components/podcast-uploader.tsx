@@ -7,10 +7,11 @@
  * Upload Flow:
  * 1. User selects file (via UploadDropzone)
  * 2. Extract audio duration (for time estimates)
- * 3. Upload file to Vercel Blob (direct upload with progress tracking)
- * 4. Create project in Convex (via server action)
- * 5. Trigger Inngest workflow (via server action)
- * 6. Redirect to project detail page
+ * 3. Pre-validate against plan limits (via server action)
+ * 4. Upload file to Vercel Blob (direct upload with progress tracking)
+ * 5. Create project in Convex (via server action)
+ * 6. Trigger Inngest workflow (via server action)
+ * 7. Redirect to project detail page
  *
  * State Management:
  * - selectedFile: Current file awaiting upload
@@ -18,10 +19,10 @@
  * - uploadProgress: 0-100% upload progress
  * - uploadStatus: idle | uploading | processing | completed | error
  *
- * Design Decisions:
- * - Duration extraction: Try to read from audio file, fallback to size-based estimate
- * - Direct upload: Files go to Blob, not through Next.js (handles large files)
- * - Server action: Creates project and triggers workflow atomically
+ * Architecture:
+ * - Pre-validation via server action prevents cryptic Vercel Blob errors
+ * - Direct upload to Blob bypasses Next.js server (handles large files)
+ * - Server actions provide type-safe, clean API for validation and project creation
  */
 "use client";
 
@@ -30,7 +31,10 @@ import { upload } from "@vercel/blob/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { createProjectAction } from "@/app/actions/projects";
+import {
+  createProjectAction,
+  validateUploadAction,
+} from "@/app/actions/projects";
 import { Button } from "@/components/ui/button";
 import { UploadDropzone } from "@/components/upload-dropzone";
 import { UploadProgress } from "@/components/upload-progress";
@@ -81,14 +85,10 @@ export function PodcastUploader() {
    * Handle upload button click
    *
    * Upload Flow:
-   * 1. Upload to Vercel Blob (with progress tracking)
-   * 2. Create project in Convex + trigger Inngest workflow
-   * 3. Redirect to project detail page
-   *
-   * Error Handling:
-   * - Shows toast notifications for user feedback
-   * - Updates status for visual indicators
-   * - Preserves file for retry
+   * 1. Pre-validate upload limits (server action - clean and type-safe)
+   * 2. Upload file to Vercel Blob (with progress tracking)
+   * 3. Create project and trigger workflow
+   * 4. Redirect to project detail page
    */
   const handleUpload = async () => {
     if (!selectedFile || !userId) {
@@ -97,24 +97,32 @@ export function PodcastUploader() {
     }
 
     try {
-      // Phase 1: Upload file to Vercel Blob
       setUploadStatus("uploading");
       setUploadProgress(0);
 
-      // upload() handles: pre-signed URL request, file upload, progress tracking
+      // Step 1: Pre-validate upload using server action
+      const validation = await validateUploadAction({
+        fileSize: selectedFile.size,
+        duration: fileDuration,
+      });
+
+      if (!validation.success) {
+        throw new Error(validation.error || "Validation failed");
+      }
+
+      // Step 2: Upload file to Vercel Blob
       const blob = await upload(selectedFile.name, selectedFile, {
-        access: "public", // Public URLs (could use private with signed URLs)
-        handleUploadUrl: "/api/upload", // Route that generates pre-signed URLs
+        access: "public",
+        handleUploadUrl: "/api/upload",
         onUploadProgress: ({ percentage }) => {
           setUploadProgress(percentage);
         },
       });
 
-      // Phase 2: Create project and trigger workflow
+      // Step 3: Create project and trigger workflow
       setUploadStatus("processing");
       setUploadProgress(100);
 
-      // Server action: Creates Convex project + sends Inngest event
       const { projectId } = await createProjectAction({
         fileUrl: blob.url,
         fileName: selectedFile.name,
@@ -126,13 +134,19 @@ export function PodcastUploader() {
       toast.success("Upload completed! Processing your podcast...");
       setUploadStatus("completed");
 
-      // Phase 3: Navigate to project detail page (shows processing status)
+      // Step 4: Navigate to project detail page
       router.push(`/dashboard/projects/${projectId}`);
     } catch (err) {
       console.error("Upload error:", err);
       setUploadStatus("error");
-      setError(err instanceof Error ? err.message : "Failed to upload file");
-      toast.error("Upload failed. Please try again.");
+
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Failed to upload file. Please try again.";
+
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -169,11 +183,11 @@ export function PodcastUploader() {
             error={error || undefined}
           />
 
-          {/* Action buttons (only show when idle) */}
-          {uploadStatus === "idle" && (
+          {/* Action buttons (show when idle or error) */}
+          {(uploadStatus === "idle" || uploadStatus === "error") && (
             <div className="flex gap-3">
               <Button onClick={handleUpload} className="flex-1">
-                Start Upload
+                {uploadStatus === "error" ? "Try Again" : "Start Upload"}
               </Button>
               <Button onClick={handleReset} variant="outline">
                 Cancel

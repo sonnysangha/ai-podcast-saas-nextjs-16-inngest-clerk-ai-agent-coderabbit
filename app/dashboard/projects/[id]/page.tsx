@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { PhaseStatus } from "@/lib/types";
+import type { PlanName } from "@/lib/tier-config";
 
 export default function ProjectDetailPage({
   params,

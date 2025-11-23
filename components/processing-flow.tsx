@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronDown, FileText, Sparkles } from "lucide-react";
+import { useAuth } from "@clerk/nextjs";
+import { ChevronDown, FileText, Lock, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GenerationOutputItem } from "@/components/processing-flow/generation-output-item";
 import { PhaseCard } from "@/components/processing-flow/phase-card";
@@ -15,6 +16,14 @@ import {
   formatTimeRange,
 } from "@/lib/processing-time-estimator";
 import type { PhaseStatus } from "@/lib/types";
+import {
+  PLAN_FEATURES,
+  FEATURES,
+  PLAN_NAMES,
+  type FeatureName,
+  type PlanName,
+} from "@/lib/tier-config";
+import { getMinimumPlanForFeature } from "@/lib/tier-utils";
 
 interface ProcessingFlowProps {
   transcriptionStatus: PhaseStatus;
@@ -29,12 +38,60 @@ export function ProcessingFlow({
   fileDuration,
   createdAt,
 }: ProcessingFlowProps) {
+  // Get user's current plan from Clerk
+  const { has } = useAuth();
+
+  // Determine user's plan using Clerk's has() method
+  const userPlan = useMemo(() => {
+    if (has?.({ plan: "ultra" })) return "ultra";
+    if (has?.({ plan: "pro" })) return "pro";
+    return "free";
+  }, [has]);
+
   const isTranscribing = transcriptionStatus === "running";
   const transcriptionComplete = transcriptionStatus === "completed";
   const transcriptionInProgress =
     transcriptionStatus === "pending" || transcriptionStatus === "running";
   const isGenerating = generationStatus === "running";
   const generationComplete = generationStatus === "completed";
+
+  // Get features available for user's plan
+  const availableFeatures = useMemo(() => PLAN_FEATURES[userPlan], [userPlan]);
+
+  // Process all outputs and mark which are locked
+  const processedOutputs = useMemo(() => {
+    // Map generation outputs to feature keys (properly typed)
+    const outputToFeature: Record<string, FeatureName> = {
+      Summary: FEATURES.SUMMARY,
+      "Key Moments": FEATURES.KEY_MOMENTS,
+      "Social Posts": FEATURES.SOCIAL_POSTS,
+      Titles: FEATURES.TITLES,
+      Hashtags: FEATURES.HASHTAGS,
+      "YouTube Timestamps": FEATURES.YOUTUBE_TIMESTAMPS,
+    };
+
+    return GENERATION_OUTPUTS.map((output) => {
+      const featureKey = outputToFeature[output.name];
+      const isLocked = featureKey
+        ? !availableFeatures.includes(featureKey)
+        : false;
+      const requiredPlan = isLocked
+        ? getMinimumPlanForFeature(featureKey)
+        : null;
+
+      return {
+        ...output,
+        isLocked,
+        requiredPlan,
+      };
+    });
+  }, [availableFeatures]);
+
+  // Only unlocked outputs cycle through animation
+  const unlockedOutputs = useMemo(
+    () => processedOutputs.filter((o) => !o.isLocked),
+    [processedOutputs],
+  );
 
   // Memoize expensive calculations
   const timeEstimate = useMemo(
@@ -68,17 +125,17 @@ export function ProcessingFlow({
   }, [isTranscribing, createdAt, timeEstimate.conservative]);
 
   useEffect(() => {
-    if (!isGenerating) {
+    if (!isGenerating || unlockedOutputs.length === 0) {
       setCurrentOutputIndex(0);
       return;
     }
 
     const interval = setInterval(() => {
-      setCurrentOutputIndex((prev) => (prev + 1) % GENERATION_OUTPUTS.length);
+      setCurrentOutputIndex((prev) => (prev + 1) % unlockedOutputs.length);
     }, ANIMATION_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, [isGenerating]);
+  }, [isGenerating, unlockedOutputs.length]);
 
   const getTranscriptionDescription = useCallback(() => {
     if (isTranscribing) return "Converting audio to text with AssemblyAI...";
@@ -88,10 +145,17 @@ export function ProcessingFlow({
 
   const getGenerationDescription = useCallback(() => {
     if (!transcriptionComplete) return "Waiting for transcription...";
-    if (isGenerating) return "Generating 6 AI outputs in parallel...";
+    const unlockedCount = unlockedOutputs.length;
+    if (isGenerating)
+      return `Generating ${unlockedCount} AI output${unlockedCount !== 1 ? "s" : ""} in parallel...`;
     if (generationComplete) return "All content generated!";
     return "Starting generation...";
-  }, [transcriptionComplete, isGenerating, generationComplete]);
+  }, [
+    transcriptionComplete,
+    isGenerating,
+    generationComplete,
+    unlockedOutputs.length,
+  ]);
 
   return (
     <div className="space-y-6">
@@ -122,23 +186,27 @@ export function ProcessingFlow({
       >
         {isGenerating && (
           <div className="space-y-3 pt-2">
-            {GENERATION_OUTPUTS.map((output, idx) => (
-              <GenerationOutputItem
-                key={output.name}
-                name={output.name}
-                description={output.description}
-                icon={output.icon}
-                isActive={idx === currentOutputIndex}
-              />
-            ))}
+            {processedOutputs.map((output, idx) => {
+              const isActive = idx === currentOutputIndex;
+
+              return (
+                <GenerationOutputItem
+                  key={output.name}
+                  name={output.name}
+                  description={output.description}
+                  icon={output.icon}
+                  isActive={isActive}
+                />
+              );
+            })}
 
             <div className="bg-linear-to-r from-primary/5 to-primary/10 rounded-lg p-4 text-center mt-4 border border-primary/20">
               <p className="text-sm text-muted-foreground">
                 <span className="font-semibold text-primary">
                   Powered by Inngest
                 </span>{" "}
-                — AI is generating all {GENERATION_OUTPUTS.length} outputs
-                simultaneously
+                — AI is generating {processedOutputs.length} output
+                {processedOutputs.length > 1 ? "s" : ""} simultaneously
               </p>
             </div>
           </div>
@@ -146,7 +214,7 @@ export function ProcessingFlow({
 
         {generationComplete && (
           <div className="flex flex-wrap items-center gap-2 pt-2">
-            {GENERATION_OUTPUTS.map((output) => (
+            {processedOutputs.map((output) => (
               <Badge key={output.name} variant="default" className="text-xs">
                 {output.name}
               </Badge>
