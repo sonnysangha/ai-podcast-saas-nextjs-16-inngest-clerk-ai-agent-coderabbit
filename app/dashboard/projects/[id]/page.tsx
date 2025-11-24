@@ -11,7 +11,7 @@ import {
   X,
   Lock,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { use, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -37,14 +37,11 @@ import type { Id } from "@/convex/_generated/dataModel";
 import type { PhaseStatus } from "@/lib/types";
 import { FEATURES } from "@/lib/tier-config";
 
-export default function ProjectDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function ProjectDetailPage() {
   const { userId } = useAuth();
   const router = useRouter();
-  const { id } = use(params);
+  const { id } = useParams();
+
   const projectId = id as Id<"projects">;
 
   // Convex is the single source of truth - real-time updates via subscription
