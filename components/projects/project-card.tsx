@@ -112,6 +112,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
                     </Badge>
                   )}
                   <button
+                    type="button"
                     onClick={handleDelete}
                     disabled={isDeleting}
                     className="h-10 w-10 rounded-full bg-red-50 hover:bg-red-100 flex items-center justify-center transition-all hover:scale-110 disabled:opacity-50"
