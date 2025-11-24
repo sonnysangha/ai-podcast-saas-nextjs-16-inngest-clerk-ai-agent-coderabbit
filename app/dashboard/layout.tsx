@@ -7,8 +7,9 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="min-h-screen">
-      <Header showDashboardNav={true} />
-      <main>{children}</main>
+      <Header />
+
+      <main className="pt-4 xl:pt-10">{children}</main>
     </div>
   );
 }

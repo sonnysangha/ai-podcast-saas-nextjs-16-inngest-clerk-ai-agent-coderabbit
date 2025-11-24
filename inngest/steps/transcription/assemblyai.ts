@@ -2,21 +2,22 @@
  * AssemblyAI Transcription Step
  *
  * Transcribes podcast audio using AssemblyAI's API with advanced features:
- * - Speaker diarization: Identifies who is speaking (ULTRA plan only)
+ * - Speaker diarization: Identifies who is speaking (always enabled, UI-gated for ULTRA)
  * - Auto chapters: AI-detected topic changes with summaries
  * - Word-level timestamps: Precise timing for each word
  * - Formatted text: Punctuation and capitalization
  *
  * Integration Flow:
  * 1. Receive audio URL from Vercel Blob and user's plan
- * 2. Submit to AssemblyAI with plan-appropriate features
+ * 2. Submit to AssemblyAI with all features enabled
  * 3. AssemblyAI polls until transcription completes
  * 4. Transform response to match our Convex schema
  * 5. Save to Convex (triggers UI update)
  * 6. Return enhanced transcript for AI generation
  *
  * Feature Gating:
- * - Speaker diarization enabled for ULTRA plan only
+ * - Speaker diarization data is always captured during transcription
+ * - UI access to speaker dialogue is restricted to ULTRA plan users
  * - Auto chapters and word timestamps for all plans
  *
  * Error Handling:
@@ -53,7 +54,7 @@ const assemblyai = new AssemblyAI({
  *
  * @param audioUrl - Public URL to audio file (from Vercel Blob)
  * @param projectId - Convex project ID for status updates
- * @param userPlan - User's subscription plan (controls speaker diarization)
+ * @param userPlan - User's subscription plan (for logging, speaker data always captured)
  * @returns TranscriptWithExtras - Enhanced transcript with chapters and speakers
  */
 export async function transcribeWithAssemblyAI(
@@ -65,15 +66,12 @@ export async function transcribeWithAssemblyAI(
     `Starting AssemblyAI transcription for project ${projectId} (${userPlan} plan)`
   );
 
-  // Enable speaker diarization only for ULTRA plan
-  const enableSpeakerDiarization = userPlan === "ultra";
-
   try {
     // Submit transcription job to AssemblyAI
     // This API call blocks until transcription is complete (can take minutes for long files)
     const transcriptResponse = await assemblyai.transcripts.transcribe({
       audio: audioUrl, // Public URL - AssemblyAI downloads the file
-      speaker_labels: enableSpeakerDiarization, // Enable speaker diarization (ULTRA only)
+      speaker_labels: true, // Always enable speaker diarization (UI-gated for ULTRA)
       auto_chapters: true, // Detect topic changes automatically
       format_text: true, // Add punctuation and capitalization
     });

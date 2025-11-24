@@ -154,7 +154,7 @@ export function ProcessingFlow({
   return (
     <div className="space-y-6">
       <PhaseCard
-        icon={<FileText className="h-6 w-6 text-primary" />}
+        icon={FileText}
         title="Phase 1: AI Analysis"
         description={getTranscriptionDescription()}
         status={transcriptionStatus}
@@ -172,7 +172,7 @@ export function ProcessingFlow({
       </div>
 
       <PhaseCard
-        icon={<Sparkles className="h-6 w-6 text-primary" />}
+        icon={Sparkles}
         title="Phase 2: AI Generation"
         description={getGenerationDescription()}
         status={generationStatus}
@@ -194,9 +194,9 @@ export function ProcessingFlow({
               );
             })}
 
-            <div className="bg-linear-to-r from-primary/5 to-primary/10 rounded-lg p-4 text-center mt-4 border border-primary/20">
-              <p className="text-sm text-muted-foreground">
-                <span className="font-semibold text-primary">
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl p-6 text-center mt-6 border-2 border-emerald-200 shadow-lg">
+              <p className="text-sm text-gray-700 leading-relaxed">
+                <span className="font-bold text-emerald-600 text-base">
                   Powered by Inngest
                 </span>{" "}
                 — AI is generating {unlockedOutputs.length} output
@@ -207,9 +207,12 @@ export function ProcessingFlow({
         )}
 
         {generationComplete && (
-          <div className="flex flex-wrap items-center gap-2 pt-2">
+          <div className="flex flex-wrap items-center gap-3 pt-4">
             {unlockedOutputs.map((output) => (
-              <Badge key={output.name} variant="default" className="text-xs">
+              <Badge
+                key={output.name}
+                className="text-sm px-4 py-2 gradient-emerald text-white shadow-md"
+              >
                 {output.name}
               </Badge>
             ))}

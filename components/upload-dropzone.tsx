@@ -89,53 +89,61 @@ export function UploadDropzone({
         {...getRootProps()}
         className={cn(
           // Base styles: Dashed border, clickable, transitions
-          "border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-all",
-          // Hover state
-          "hover:border-primary/50 hover:bg-accent/50",
+          "border-3 border-dashed rounded-2xl p-16 text-center cursor-pointer transition-all",
+          "border-emerald-300 hover:border-emerald-500 hover:bg-emerald-50/50",
           // Drag active state (file hovering over dropzone)
-          isDragActive && "border-primary bg-accent",
+          isDragActive && "border-emerald-600 bg-emerald-50 scale-[1.02] shadow-xl",
           // Disabled state
           disabled && "opacity-50 cursor-not-allowed",
           // Error state
-          errorMessage && "border-destructive",
+          errorMessage && "border-red-400 bg-red-50/30",
+          // Hover glow effect
+          !disabled && "hover-glow"
         )}
       >
         {/* Hidden file input (accessibility) */}
         <input {...getInputProps()} />
 
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex flex-col items-center gap-6">
           {/* Icon indicator */}
-          <div className="rounded-full bg-primary/10 p-6">
+          <div className={cn(
+            "rounded-3xl p-8 transition-all",
+            isDragActive ? "gradient-emerald animate-pulse-emerald shadow-2xl scale-110" : "glass-card"
+          )}>
             {isDragActive ? (
-              <Upload className="h-10 w-10 text-primary animate-bounce" />
+              <Upload className="h-16 w-16 text-white animate-bounce" />
             ) : (
-              <FileAudio className="h-10 w-10 text-muted-foreground" />
+              <FileAudio className="h-16 w-16 text-emerald-600" />
             )}
           </div>
 
           {/* Instructions and info */}
-          <div className="space-y-2">
-            <p className="text-lg font-semibold">
+          <div className="space-y-3">
+            <p className="text-2xl font-bold text-gray-900">
               {isDragActive
                 ? "Drop your podcast file here"
                 : "Drag & drop your podcast file"}
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-gray-600">
               or click to browse files
             </p>
-            <p className="text-xs text-muted-foreground">
-              Supports audio files: MP3, WAV, M4A, FLAC, OGG, AAC, and more
-            </p>
-            <p className="text-xs text-muted-foreground font-medium">
-              Maximum file size: {Math.round(maxSize / (1024 * 1024))}MB
-            </p>
+            <div className="pt-2 space-y-1">
+              <p className="text-sm text-gray-500 font-medium">
+                Supports: MP3, WAV, M4A, FLAC, OGG, AAC, and more
+              </p>
+              <p className="text-sm text-gray-500 font-semibold">
+                Maximum file size: {Math.round(maxSize / (1024 * 1024))}MB
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Error message display */}
       {errorMessage && (
-        <p className="mt-2 text-sm text-destructive">{errorMessage}</p>
+        <div className="mt-4 p-4 rounded-xl bg-red-50 border border-red-200">
+          <p className="text-sm text-red-600 font-medium">{errorMessage}</p>
+        </div>
       )}
     </div>
   );

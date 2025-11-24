@@ -150,7 +150,7 @@ export async function createProjectAction(input: CreateProjectInput) {
       fileSize: fileSize || 0,
       fileDuration,
       fileFormat: fileExtension,
-      mimeType: mimeType || "application/octet-stream",
+      mimeType: mimeType,
     });
 
     // Trigger Inngest workflow asynchronously with user's current plan
@@ -164,7 +164,7 @@ export async function createProjectAction(input: CreateProjectInput) {
         fileUrl, // URL to audio file in Blob
         fileName,
         fileSize: fileSize || 0,
-        mimeType: mimeType || "application/octet-stream",
+        mimeType: mimeType,
       },
     });
 

@@ -1,14 +1,13 @@
 "use client";
 
 import { Protect } from "@clerk/nextjs";
-import { generateMissingFeatures } from "@/app/actions/generate-missing-features";
 import { ErrorRetryCard } from "@/components/project-detail/error-retry-card";
+import { GenerateMissingCard } from "@/components/project-detail/generate-missing-card";
 import { UpgradePrompt } from "@/components/project-detail/upgrade-prompt";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Id } from "@/convex/_generated/dataModel";
 import { FEATURES } from "@/lib/tier-config";
-import { Check, Copy, Sparkles } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -29,26 +28,10 @@ export function YouTubeTimestampsTab({
   error,
 }: YouTubeTimestampsTabProps) {
   const [copied, setCopied] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
 
   if (error) {
     return <ErrorRetryCard projectId={projectId} job="youtubeTimestamps" errorMessage={error} />;
   }
-
-  const handleGenerate = async () => {
-    setIsGenerating(true);
-    try {
-      const result = await generateMissingFeatures(projectId);
-      toast.success(result.message);
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to generate features",
-      );
-      setIsGenerating(false);
-    }
-  };
 
   if (!timestamps || timestamps.length === 0) {
     return (
@@ -62,25 +45,10 @@ export function YouTubeTimestampsTab({
           />
         }
       >
-        <Card>
-          <CardContent className="py-8 text-center space-y-4">
-            <p className="text-muted-foreground">No YouTube timestamps available</p>
-            <p className="text-sm text-muted-foreground">
-              It looks like this project was processed before you upgraded.
-            </p>
-            <Button
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              className="gap-2"
-            >
-              <Sparkles className="h-4 w-4" />
-              {isGenerating ? "Generating..." : "Generate All Missing Features"}
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              This will generate all features available in your current plan
-            </p>
-          </CardContent>
-        </Card>
+        <GenerateMissingCard
+          projectId={projectId}
+          message="No YouTube timestamps available"
+        />
       </Protect>
     );
   }
@@ -112,14 +80,21 @@ export function YouTubeTimestampsTab({
         />
       }
     >
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle>YouTube Timestamps</CardTitle>
+      <div className="glass-card rounded-2xl p-6 md:p-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 md:mb-8 gap-4">
+          <div>
+            <h3 className="text-xl md:text-2xl font-bold gradient-emerald-text mb-2">
+              YouTube Timestamps
+            </h3>
+            <p className="text-sm text-gray-600">
+              Copy these timestamps and paste them into your YouTube video
+              description. YouTube will automatically create clickable chapter
+              markers.
+            </p>
+          </div>
           <Button
             onClick={handleCopyAll}
-            variant="outline"
-            size="sm"
-            className="gap-2"
+            className="gradient-emerald text-white hover-glow shadow-lg gap-2 shrink-0"
           >
             {copied ? (
               <>
@@ -133,40 +108,37 @@ export function YouTubeTimestampsTab({
               </>
             )}
           </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Copy these timestamps and paste them into your YouTube video
-              description. YouTube will automatically create clickable chapter
-              markers.
-            </p>
+        </div>
 
-            <div className="bg-muted/50 rounded-lg p-4 border">
-              <pre className="whitespace-pre-wrap font-mono text-sm">
-                {formattedTimestamps}
-              </pre>
-            </div>
+        <div className="space-y-6">
+          <div className="glass-card rounded-xl p-4 md:p-5 bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100">
+            <pre className="whitespace-pre-wrap font-mono text-xs md:text-sm break-words text-gray-800">
+              {formattedTimestamps}
+            </pre>
+          </div>
 
-            <div className="space-y-2 border-t pt-4">
-              <h4 className="text-sm font-semibold">Individual Timestamps:</h4>
-              <div className="space-y-2">
-                {timestamps.map((timestamp, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-start gap-3 p-3 bg-muted/30 rounded-md hover:bg-muted/50 transition-colors"
-                  >
-                    <code className="text-sm font-mono font-semibold text-primary min-w-[60px]">
-                      {timestamp.timestamp}
-                    </code>
-                    <p className="text-sm flex-1">{timestamp.description}</p>
-                  </div>
-                ))}
-              </div>
+          <div className="space-y-4 pt-4 border-t border-gray-200">
+            <h4 className="text-base md:text-lg font-bold text-gray-900">
+              Individual Timestamps:
+            </h4>
+            <div className="space-y-3">
+              {timestamps.map((timestamp, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-start gap-3 md:gap-4 p-4 md:p-5 glass-card rounded-xl border-l-4 border-l-emerald-400"
+                >
+                  <code className="text-sm md:text-base font-mono font-bold gradient-emerald text-white px-3 py-1.5 rounded-lg shadow-md shrink-0">
+                    {timestamp.timestamp}
+                  </code>
+                  <p className="text-sm md:text-base text-gray-700 flex-1 min-w-0 break-words leading-relaxed">
+                    {timestamp.description}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </Protect>
   );
 }

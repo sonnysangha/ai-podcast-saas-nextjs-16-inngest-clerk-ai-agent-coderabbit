@@ -18,7 +18,7 @@ export function ProjectsList({ preloadedProjects }: ProjectsListProps) {
   const hasProjects = projects.length > 0;
 
   return (
-    <div className="container max-w-6xl mx-auto py-10 px-4">
+    <div className="container max-w-6xl mx-auto py-10 px-12 xl:px-0">
       <PageHeader />
 
       {!hasProjects && <EmptyState />}

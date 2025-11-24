@@ -31,6 +31,13 @@ import { YouTubeTimestampsTab } from "@/components/project-tabs/youtube-timestam
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -52,6 +59,9 @@ export default function ProjectDetailPage() {
   const [editedName, setEditedName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Tab state for mobile dropdown
+  const [activeTab, setActiveTab] = useState("summary");
 
   // Get status from Convex jobStatus (initialized on project creation)
   const transcriptionStatus: PhaseStatus =
@@ -141,7 +151,7 @@ export default function ProjectDetailPage() {
   const showGenerating = isProcessing && generationStatus === "running";
 
   return (
-    <div className="container max-w-6xl mx-auto py-10 px-4">
+    <div className="container max-w-6xl mx-auto py-10 px-4 ">
       {/* Header with title and actions */}
       <div className="mb-8 flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
@@ -179,25 +189,30 @@ export default function ProjectDetailPage() {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           {!isEditing && (
-            <Button variant="outline" size="sm" onClick={handleStartEdit}>
-              <Edit2 className="h-4 w-4 mr-2" />
-              Edit
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={handleStartEdit}
+              className="glass-card hover-lift border-2 border-emerald-200 hover:border-emerald-400 px-6 bg-white"
+            >
+              <Edit2 className="h-4 w-4 mr-2 text-emerald-600" />
+              <span className="font-semibold text-emerald-700">Edit</span>
             </Button>
           )}
           <Button
-            variant="destructive"
-            size="sm"
+            size="lg"
             onClick={handleDelete}
             disabled={isDeleting}
+            className="gradient-emerald text-white hover-glow px-6 transition-all"
           >
             {isDeleting ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : (
               <Trash2 className="h-4 w-4 mr-2" />
             )}
-            Delete
+            <span className="font-semibold">Delete</span>
           </Button>
         </div>
       </div>
@@ -231,93 +246,188 @@ export default function ProjectDetailPage() {
         )}
 
         {(showGenerating || isCompleted) && (
-          <Tabs defaultValue="summary" className="w-full">
-            <TabsList className="flex flex-col md:flex-row md:inline-flex w-full md:w-auto h-auto">
-              <TabsTrigger
-                value="summary"
-                className="w-full md:w-auto flex items-center gap-2"
-              >
-                Summary
-                {project.jobErrors?.summary && (
-                  <AlertCircle className="h-4 w-4 text-destructive" />
-                )}
-              </TabsTrigger>
-              <TabsTrigger
-                value="moments"
-                className="w-full md:w-auto flex items-center gap-2"
-              >
-                Key Moments
-                {project.jobErrors?.keyMoments && (
-                  <AlertCircle className="h-4 w-4 text-destructive" />
-                )}
-                <Protect
-                  feature={FEATURES.KEY_MOMENTS}
-                  fallback={<Lock className="h-3 w-3 text-muted-foreground" />}
-                />
-              </TabsTrigger>
-              <TabsTrigger
-                value="youtube-timestamps"
-                className="w-full md:w-auto flex items-center gap-2"
-              >
-                YouTube Timestamps
-                {project.jobErrors?.youtubeTimestamps && (
-                  <AlertCircle className="h-4 w-4 text-destructive" />
-                )}
-                <Protect
-                  feature={FEATURES.YOUTUBE_TIMESTAMPS}
-                  fallback={<Lock className="h-3 w-3 text-muted-foreground" />}
-                />
-              </TabsTrigger>
-              <TabsTrigger
-                value="social"
-                className="w-full md:w-auto flex items-center gap-2"
-              >
-                Social Posts
-                {project.jobErrors?.socialPosts && (
-                  <AlertCircle className="h-4 w-4 text-destructive" />
-                )}
-                <Protect
-                  feature={FEATURES.SOCIAL_POSTS}
-                  fallback={<Lock className="h-3 w-3 text-muted-foreground" />}
-                />
-              </TabsTrigger>
-              <TabsTrigger
-                value="hashtags"
-                className="w-full md:w-auto flex items-center gap-2"
-              >
-                Hashtags
-                {project.jobErrors?.hashtags && (
-                  <AlertCircle className="h-4 w-4 text-destructive" />
-                )}
-                <Protect
-                  feature={FEATURES.HASHTAGS}
-                  fallback={<Lock className="h-3 w-3 text-muted-foreground" />}
-                />
-              </TabsTrigger>
-              <TabsTrigger
-                value="titles"
-                className="w-full md:w-auto flex items-center gap-2"
-              >
-                Titles
-                {project.jobErrors?.titles && (
-                  <AlertCircle className="h-4 w-4 text-destructive" />
-                )}
-                <Protect
-                  feature={FEATURES.TITLES}
-                  fallback={<Lock className="h-3 w-3 text-muted-foreground" />}
-                />
-              </TabsTrigger>
-              <TabsTrigger
-                value="speakers"
-                className="w-full md:w-auto flex items-center gap-2"
-              >
-                Speaker Dialogue
-                <Protect
-                  feature={FEATURES.SPEAKER_DIARIZATION}
-                  fallback={<Lock className="h-3 w-3 text-muted-foreground" />}
-                />
-              </TabsTrigger>
-            </TabsList>
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
+            {/* Mobile Dropdown */}
+            <div className="glass-card rounded-2xl p-4 mb-6 lg:hidden">
+              <Select value={activeTab} onValueChange={setActiveTab}>
+                <SelectTrigger className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-white font-semibold text-base border-none outline-none focus:ring-2 focus:ring-emerald-300 transition-all h-auto">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="summary">
+                    <span className="flex items-center gap-2">
+                      Summary
+                      {project.jobErrors?.summary && (
+                        <AlertCircle className="h-4 w-4 text-destructive" />
+                      )}
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="moments">
+                    <span className="flex items-center gap-2">
+                      Key Moments
+                      {project.jobErrors?.keyMoments && (
+                        <AlertCircle className="h-4 w-4 text-destructive" />
+                      )}
+                      <Protect
+                        feature={FEATURES.KEY_MOMENTS}
+                        fallback={<Lock className="h-3 w-3" />}
+                      />
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="youtube-timestamps">
+                    <span className="flex items-center gap-2">
+                      YouTube Timestamps
+                      {project.jobErrors?.youtubeTimestamps && (
+                        <AlertCircle className="h-4 w-4 text-destructive" />
+                      )}
+                      <Protect
+                        feature={FEATURES.YOUTUBE_TIMESTAMPS}
+                        fallback={<Lock className="h-3 w-3" />}
+                      />
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="social">
+                    <span className="flex items-center gap-2">
+                      Social Posts
+                      {project.jobErrors?.socialPosts && (
+                        <AlertCircle className="h-4 w-4 text-destructive" />
+                      )}
+                      <Protect
+                        feature={FEATURES.SOCIAL_POSTS}
+                        fallback={<Lock className="h-3 w-3" />}
+                      />
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="hashtags">
+                    <span className="flex items-center gap-2">
+                      Hashtags
+                      {project.jobErrors?.hashtags && (
+                        <AlertCircle className="h-4 w-4 text-destructive" />
+                      )}
+                      <Protect
+                        feature={FEATURES.HASHTAGS}
+                        fallback={<Lock className="h-3 w-3" />}
+                      />
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="titles">
+                    <span className="flex items-center gap-2">
+                      Titles
+                      {project.jobErrors?.titles && (
+                        <AlertCircle className="h-4 w-4 text-destructive" />
+                      )}
+                      <Protect
+                        feature={FEATURES.TITLES}
+                        fallback={<Lock className="h-3 w-3" />}
+                      />
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="speakers">
+                    <span className="flex items-center gap-2">
+                      Speaker Dialogue
+                      <Protect
+                        feature={FEATURES.SPEAKER_DIARIZATION}
+                        fallback={<Lock className="h-3 w-3" />}
+                      />
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Desktop Tabs */}
+            <div className="glass-card rounded-2xl p-2 mb-6 hidden lg:block">
+              <TabsList className="flex flex-wrap gap-2 bg-transparent min-w-max w-full">
+                <TabsTrigger
+                  value="summary"
+                  className="flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-400 data-[state=active]:text-white transition-all font-semibold whitespace-nowrap"
+                >
+                  Summary
+                  {project.jobErrors?.summary && (
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                  )}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="moments"
+                  className="flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-400 data-[state=active]:text-white transition-all font-semibold whitespace-nowrap"
+                >
+                  Key Moments
+                  {project.jobErrors?.keyMoments && (
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                  )}
+                  <Protect
+                    feature={FEATURES.KEY_MOMENTS}
+                    fallback={<Lock className="h-3 w-3" />}
+                  />
+                </TabsTrigger>
+                <TabsTrigger
+                  value="youtube-timestamps"
+                  className="flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-400 data-[state=active]:text-white transition-all font-semibold whitespace-nowrap"
+                >
+                  YouTube Timestamps
+                  {project.jobErrors?.youtubeTimestamps && (
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                  )}
+                  <Protect
+                    feature={FEATURES.YOUTUBE_TIMESTAMPS}
+                    fallback={<Lock className="h-3 w-3" />}
+                  />
+                </TabsTrigger>
+                <TabsTrigger
+                  value="social"
+                  className="flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-400 data-[state=active]:text-white transition-all font-semibold whitespace-nowrap"
+                >
+                  Social Posts
+                  {project.jobErrors?.socialPosts && (
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                  )}
+                  <Protect
+                    feature={FEATURES.SOCIAL_POSTS}
+                    fallback={<Lock className="h-3 w-3" />}
+                  />
+                </TabsTrigger>
+                <TabsTrigger
+                  value="hashtags"
+                  className="flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-400 data-[state=active]:text-white transition-all font-semibold whitespace-nowrap"
+                >
+                  Hashtags
+                  {project.jobErrors?.hashtags && (
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                  )}
+                  <Protect
+                    feature={FEATURES.HASHTAGS}
+                    fallback={<Lock className="h-3 w-3" />}
+                  />
+                </TabsTrigger>
+                <TabsTrigger
+                  value="titles"
+                  className="flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-400 data-[state=active]:text-white transition-all font-semibold whitespace-nowrap"
+                >
+                  Titles
+                  {project.jobErrors?.titles && (
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                  )}
+                  <Protect
+                    feature={FEATURES.TITLES}
+                    fallback={<Lock className="h-3 w-3" />}
+                  />
+                </TabsTrigger>
+                <TabsTrigger
+                  value="speakers"
+                  className="flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-400 data-[state=active]:text-white transition-all font-semibold whitespace-nowrap"
+                >
+                  Speaker Dialogue
+                  <Protect
+                    feature={FEATURES.SPEAKER_DIARIZATION}
+                    fallback={<Lock className="h-3 w-3" />}
+                  />
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="summary" className="space-y-4">
               <TabContent
@@ -406,7 +516,10 @@ export default function ProjectDetailPage() {
             <TabsContent value="speakers" className="space-y-4">
               <TabContent isLoading={showGenerating} data={project.transcript}>
                 {project.transcript && (
-                  <TranscriptTab transcript={project.transcript} />
+                  <TranscriptTab
+                    projectId={projectId}
+                    transcript={project.transcript}
+                  />
                 )}
               </TabContent>
             </TabsContent>

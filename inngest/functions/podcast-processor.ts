@@ -9,10 +9,10 @@
  * Feature Gating by Plan:
  * - FREE: Summary only
  * - PRO: + Social Posts, Titles, Hashtags
- * - ULTRA: + YouTube Timestamps, Key Moments, Speaker Diarization + Full Transcript Access
+ * - ULTRA: + YouTube Timestamps, Key Moments, Full Transcript Access
  *
- * Note: Audio analysis (transcription) runs for ALL users to power AI features,
- * but transcript text is only accessible to ULTRA users via Speaker Dialogue tab.
+ * Note: Audio analysis (transcription) runs for ALL users to power AI features.
+ * Speaker diarization data is always captured but only viewable to ULTRA users.
  *
  * Inngest Benefits for This Use Case:
  * - Durable execution: If OpenAI times out, the step retries automatically
@@ -83,7 +83,7 @@ export const podcastProcessor = inngest.createFunction(
 
       // Step 1: Transcribe audio with AssemblyAI (sequential - blocks next steps)
       // This step is durable: if it fails, Inngest retries automatically
-      // Enable speaker diarization for ULTRA plan only
+      // Speaker diarization is always enabled; UI access is gated by plan
       const transcript = await step.run("transcribe-audio", () =>
         transcribeWithAssemblyAI(fileUrl, projectId, plan)
       );

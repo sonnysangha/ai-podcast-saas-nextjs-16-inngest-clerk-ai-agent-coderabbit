@@ -80,42 +80,6 @@
 
 /*---break--- */
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
-
-/*---break--- */
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -125,8 +89,266 @@
   }
 }
 
-/* Clerk Pricing Table Customization */
+/* Clerk Pricing Table and Modal z-index fixes */
 .cl-pricingTableCardPeriodToggle label,
 .cl-pricingTableCardPeriodToggle span {
   color: white;
+}
+
+/* Any div with role="dialog" from Clerk */
+div[role="dialog"],
+div[role="alertdialog"] {
+  z-index: 99999 !important;
+}
+
+/*---break--- */
+
+/* Custom Emerald Theme Variables */
+:root {
+  --emerald-50: 236 253 245;
+  --emerald-100: 209 250 229;
+  --emerald-200: 167 243 208;
+  --emerald-300: 110 231 183;
+  --emerald-400: 52 211 153;
+  --emerald-500: 16 185 129;
+  --emerald-600: 5 150 105;
+  --emerald-700: 4 120 87;
+  --emerald-800: 6 95 70;
+  --emerald-900: 6 78 59;
+
+  --teal-50: 240 253 250;
+  --teal-100: 204 251 241;
+  --teal-200: 153 246 228;
+  --teal-300: 94 234 212;
+  --teal-400: 45 212 191;
+  --teal-500: 20 184 166;
+  --teal-600: 13 148 136;
+  --teal-700: 15 118 110;
+
+  /* Gradient definitions */
+  --gradient-emerald: linear-gradient(
+    135deg,
+    rgb(16 185 129) 0%,
+    rgb(45 212 191) 100%
+  );
+  --gradient-emerald-soft: linear-gradient(
+    135deg,
+    rgb(16 185 129 / 0.1) 0%,
+    rgb(45 212 191 / 0.1) 100%
+  );
+  --gradient-emerald-glow: linear-gradient(
+    135deg,
+    rgb(16 185 129 / 0.2) 0%,
+    rgb(45 212 191 / 0.3) 100%
+  );
+}
+
+/*---break--- */
+
+/* Glass Morphism Utilities */
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 2px 8px 0 rgba(31, 38, 135, 0.08);
+}
+
+.glass-card-strong {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 12px 0 rgba(31, 38, 135, 0.1);
+}
+
+.glass-nav {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/*---break--- */
+
+/* Gradient Utilities */
+.gradient-emerald {
+  background: linear-gradient(135deg, rgb(16 185 129) 0%, rgb(45 212 191) 100%);
+}
+
+.gradient-emerald-text {
+  background: linear-gradient(135deg, rgb(16 185 129) 0%, rgb(45 212 191) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-emerald-hover {
+  position: relative;
+  overflow: hidden;
+}
+
+.gradient-emerald-hover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgb(16 185 129) 0%, rgb(45 212 191) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.gradient-emerald-hover:hover::before {
+  opacity: 0.1;
+}
+
+/*---break--- */
+
+/* Animation Utilities */
+@keyframes glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 20px rgba(16, 185, 129, 0.3),
+      0 0 40px rgba(45, 212, 191, 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 30px rgba(16, 185, 129, 0.4),
+      0 0 60px rgba(45, 212, 191, 0.3);
+  }
+}
+
+@keyframes pulse-emerald {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.animate-glow {
+  animation: glow 3s ease-in-out infinite;
+}
+
+.animate-pulse-emerald {
+  animation: pulse-emerald 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s linear infinite;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(16, 185, 129, 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 1000px 100%;
+}
+
+/*---break--- */
+
+/* Hover Effects */
+.hover-lift {
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+}
+
+.hover-glow {
+  transition:
+    box-shadow 0.3s ease,
+    transform 0.2s ease;
+}
+
+.hover-glow:hover {
+  box-shadow:
+    0 0 20px rgba(16, 185, 129, 0.3),
+    0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.hover-scale {
+  transition: transform 0.2s ease;
+}
+
+.hover-scale:hover {
+  transform: scale(1.05);
+}
+
+/*---break--- */
+
+/* Emerald Accent Borders */
+.border-emerald-gradient {
+  border-image: linear-gradient(135deg, rgb(16 185 129), rgb(45 212 191)) 1;
+}
+
+.border-l-emerald-gradient {
+  border-left: 4px solid;
+  border-image: linear-gradient(to bottom, rgb(16 185 129), rgb(45 212 191)) 1;
+  border-image-slice: 1;
+}
+
+/*---break--- */
+
+/* Progress Bar Emerald */
+.progress-emerald {
+  background: linear-gradient(90deg, rgb(16 185 129) 0%, rgb(45 212 191) 100%);
+}
+
+/*---break--- */
+
+/* Mesh Background Pattern */
+.mesh-background {
+  background-color: rgb(236 253 245);
+  background-image:
+    radial-gradient(at 40% 20%, rgb(209 250 229 / 0.5) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, rgb(167 243 208 / 0.5) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, rgb(110 231 183 / 0.3) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, rgb(52 211 153 / 0.3) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgb(16 185 129 / 0.2) 0px, transparent 50%),
+    radial-gradient(at 80% 100%, rgb(45 212 191 / 0.3) 0px, transparent 50%);
+}
+
+.mesh-background-subtle {
+  background:
+    radial-gradient(
+      circle at 20% 30%,
+      rgba(16, 185, 129, 0.05) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 80% 70%,
+      rgba(45, 212, 191, 0.05) 0%,
+      transparent 50%
+    );
 }

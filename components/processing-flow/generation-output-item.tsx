@@ -22,47 +22,47 @@ export function GenerationOutputItem({
   return (
     <div
       className={cn(
-        "border rounded-lg transition-all duration-700 ease-in-out",
+        "glass-card rounded-xl transition-all duration-700 ease-in-out",
         isLocked
-          ? "bg-muted/10 border-muted/30 opacity-30 scale-100"
+          ? "opacity-30 scale-100"
           : isActive
-            ? "bg-primary/5 border-primary shadow-md scale-[1.02]"
-            : "bg-muted/20 border-muted/40 opacity-40 scale-100"
+            ? "ring-2 ring-emerald-400 shadow-lg scale-[1.02]"
+            : "opacity-40 scale-100"
       )}
     >
-      <div className="p-4">
-        <div className="flex items-start gap-3">
+      <div className="p-5">
+        <div className="flex items-start gap-4">
           <div
             className={cn(
-              "rounded-full p-2.5 transition-all duration-500",
+              "rounded-xl p-3 transition-all duration-500",
               isLocked
-                ? "bg-muted/30"
+                ? "bg-gray-200"
                 : isActive
-                  ? "bg-primary/10 ring-2 ring-primary/20"
-                  : "bg-muted/50"
+                  ? "gradient-emerald shadow-md"
+                  : "bg-emerald-100"
             )}
           >
             <Icon
               className={cn(
-                "h-5 w-5 transition-all duration-500",
+                "h-6 w-6 transition-all duration-500",
                 isLocked
-                  ? "text-muted-foreground/40"
+                  ? "text-gray-400"
                   : isActive
-                    ? "text-primary"
-                    : "text-muted-foreground/60"
+                    ? "text-white"
+                    : "text-emerald-600"
               )}
             />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-3 mb-2">
               <h4
                 className={cn(
-                  "font-semibold text-sm transition-all duration-500",
+                  "font-bold text-base transition-all duration-500",
                   isLocked
-                    ? "text-foreground/40"
+                    ? "text-gray-400"
                     : isActive
-                      ? "text-primary"
-                      : "text-foreground/60"
+                      ? "text-emerald-700"
+                      : "text-gray-600"
                 )}
               >
                 {name}
@@ -70,10 +70,10 @@ export function GenerationOutputItem({
               {!isLocked && (
                 <Loader2
                   className={cn(
-                    "h-4 w-4 animate-spin transition-all duration-500",
+                    "h-5 w-5 animate-spin transition-all duration-500",
                     isActive
-                      ? "text-primary opacity-100"
-                      : "text-muted-foreground/40 opacity-50"
+                      ? "text-emerald-600 opacity-100"
+                      : "text-gray-400 opacity-50"
                   )}
                 />
               )}
@@ -82,10 +82,10 @@ export function GenerationOutputItem({
               className={cn(
                 "text-sm transition-all duration-500",
                 isLocked
-                  ? "text-muted-foreground/40 opacity-50"
+                  ? "text-gray-400 opacity-50"
                   : isActive
-                    ? "text-muted-foreground opacity-100"
-                    : "text-muted-foreground/50 opacity-60"
+                    ? "text-gray-700 opacity-100"
+                    : "text-gray-500 opacity-60"
               )}
             >
               {description}

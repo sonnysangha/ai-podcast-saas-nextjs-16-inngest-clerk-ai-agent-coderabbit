@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import type { Doc } from "@/convex/_generated/dataModel";
 import {
   PROGRESS_CAP_PERCENTAGE,
@@ -64,17 +63,19 @@ export function CompactProgress({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Badge variant="secondary" className="text-xs font-medium">
+        <Badge className="text-xs font-semibold bg-emerald-100 text-emerald-700 border-emerald-200">
           {statusText}
         </Badge>
-        <span className="text-xs font-semibold text-muted-foreground">
+        <span className="text-xs font-bold text-emerald-600">
           {Math.round(progress)}%
         </span>
       </div>
-      <Progress
-        value={progress}
-        className="h-2 [&>div]:bg-green-500 [&>div]:animate-pulse"
-      />
+      <div className="relative h-2 bg-emerald-100 rounded-full overflow-hidden">
+        <div 
+          className="absolute inset-y-0 left-0 progress-emerald rounded-full transition-all duration-300"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
     </div>
   );
 }

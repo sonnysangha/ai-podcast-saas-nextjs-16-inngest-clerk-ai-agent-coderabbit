@@ -1,17 +1,12 @@
 "use client";
 
 import { Protect } from "@clerk/nextjs";
-import { generateMissingFeatures } from "@/app/actions/generate-missing-features";
 import { ErrorRetryCard } from "@/components/project-detail/error-retry-card";
+import { GenerateMissingCard } from "@/components/project-detail/generate-missing-card";
 import { UpgradePrompt } from "@/components/project-detail/upgrade-prompt";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Id } from "@/convex/_generated/dataModel";
 import { FEATURES } from "@/lib/tier-config";
-import { Sparkles } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
 
 interface TitlesTabProps {
   projectId: Id<"projects">;
@@ -48,26 +43,9 @@ const TITLE_CATEGORIES = [
 ];
 
 export function TitlesTab({ projectId, titles, error }: TitlesTabProps) {
-  const [isGenerating, setIsGenerating] = useState(false);
-
   if (error) {
     return <ErrorRetryCard projectId={projectId} job="titles" errorMessage={error} />;
   }
-
-  const handleGenerate = async () => {
-    setIsGenerating(true);
-    try {
-      const result = await generateMissingFeatures(projectId);
-      toast.success(result.message);
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to generate features",
-      );
-      setIsGenerating(false);
-    }
-  };
 
   if (!titles) {
     return (
@@ -81,25 +59,10 @@ export function TitlesTab({ projectId, titles, error }: TitlesTabProps) {
           />
         }
       >
-        <Card>
-          <CardContent className="py-8 text-center space-y-4">
-            <p className="text-muted-foreground">No titles available</p>
-            <p className="text-sm text-muted-foreground">
-              It looks like this project was processed before you upgraded.
-            </p>
-            <Button
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              className="gap-2"
-            >
-              <Sparkles className="h-4 w-4" />
-              {isGenerating ? "Generating..." : "Generate All Missing Features"}
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              This will generate all features available in your current plan
-            </p>
-          </CardContent>
-        </Card>
+        <GenerateMissingCard
+          projectId={projectId}
+          message="No titles available"
+        />
       </Protect>
     );
   }
@@ -115,32 +78,28 @@ export function TitlesTab({ projectId, titles, error }: TitlesTabProps) {
         />
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-6">
         {TITLE_CATEGORIES.map((category) => (
-          <Card key={category.key}>
-            <CardHeader>
-              <CardTitle>{category.title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {category.type === "list" ? (
-                <ul className="space-y-2">
-                  {titles[category.key].map((title, idx) => (
-                    <li key={idx} className="p-3 border rounded-lg">
-                      {title}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {titles[category.key].map((keyword, idx) => (
-                    <Badge key={idx} variant="secondary">
-                      {keyword}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <div key={category.key} className="glass-card rounded-2xl p-6 md:p-8">
+            <h3 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 gradient-emerald-text">{category.title}</h3>
+            {category.type === "list" ? (
+              <ul className="space-y-3">
+                {titles[category.key].map((title, idx) => (
+                  <li key={idx} className="p-3 md:p-4 glass-card rounded-xl border-l-4 border-l-emerald-400">
+                    <p className="text-sm md:text-base text-gray-700 font-medium break-words">{title}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="flex flex-wrap gap-2 md:gap-3">
+                {titles[category.key].map((keyword, idx) => (
+                  <Badge key={idx} className="px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm gradient-emerald text-white shadow-md break-words">
+                    {keyword}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
         ))}
       </div>
     </Protect>

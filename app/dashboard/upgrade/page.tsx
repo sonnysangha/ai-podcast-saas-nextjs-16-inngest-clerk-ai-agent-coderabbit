@@ -16,7 +16,7 @@
 
 import { PricingTable } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
-import { ArrowLeft, Lock, Zap, Crown, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Lock, Zap, Crown } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
@@ -89,13 +89,13 @@ export default async function UpgradePage({ searchParams }: UpgradePageProps) {
   const currentPlan = getCurrentPlan(authObj);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen mesh-background-subtle">
       {/* Header */}
-      <div className="border-b">
+      <div className="glass-nav border-b">
         <div className="container mx-auto px-4 py-6">
           <Link
             href="/dashboard/projects"
-            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="inline-flex items-center text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Dashboard
@@ -104,25 +104,30 @@ export default async function UpgradePage({ searchParams }: UpgradePageProps) {
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-12">
+      <div className="container mx-auto px-4 py-16">
         {/* Contextual Message */}
-        <div className="max-w-3xl mx-auto text-center mb-12">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-6">
-            <Icon className="h-8 w-8 text-primary" />
+        <div className="max-w-3xl mx-auto text-center mb-16">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-100 mb-6">
+            <Icon className="h-10 w-10 text-gray-700" />
           </div>
-          <h1 className="text-4xl font-bold mb-4">{message.title}</h1>
-          <p className="text-xl text-muted-foreground mb-6">
+          <h1 className="text-5xl font-extrabold mb-6">
+            <span className="gradient-emerald-text">{message.title}</span>
+          </h1>
+          <p className="text-xl text-gray-600 mb-8 leading-relaxed">
             {message.description}
           </p>
 
           {/* Current Plan Badge */}
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 text-base text-gray-600">
             <span>Current plan:</span>
             <Badge
-              variant={currentPlan === "ultra" ? "default" : "secondary"}
-              className="gap-1"
+              className={
+                currentPlan === "ultra"
+                  ? "gradient-emerald text-white px-4 py-1.5"
+                  : "bg-gray-200 text-gray-700 px-4 py-1.5"
+              }
             >
-              {currentPlan === "ultra" && <Crown className="h-3 w-3" />}
+              {currentPlan === "ultra" && <Crown className="h-4 w-4 mr-1" />}
               {currentPlan === "free" && "Free"}
               {currentPlan === "pro" && "Pro"}
               {currentPlan === "ultra" && "Ultra"}
@@ -137,80 +142,67 @@ export default async function UpgradePage({ searchParams }: UpgradePageProps) {
               elements: {
                 pricingTableCardHeader: {
                   background:
-                    "linear-gradient(135deg, oklch(0.205 0 0), oklch(0.269 0 0))",
+                    "linear-gradient(135deg, rgb(16 185 129), rgb(45 212 191))",
                   color: "white",
-                  borderRadius: "0.625rem 0.625rem 0 0",
+                  borderRadius: "1rem 1rem 0 0",
+                  padding: "2.5rem",
                 },
                 pricingTableCardTitle: {
-                  fontSize: "2rem",
-                  fontWeight: "700",
+                  fontSize: "2.25rem",
+                  fontWeight: "800",
                   color: "white",
+                  marginBottom: "0.5rem",
                 },
                 pricingTableCardDescription: {
-                  fontSize: "1rem",
-                  color: "rgba(255, 255, 255, 0.9)",
+                  fontSize: "1.1rem",
+                  color: "rgba(255, 255, 255, 0.95)",
+                  fontWeight: "500",
                 },
                 pricingTableCardFee: {
                   color: "white",
-                  fontWeight: "700",
+                  fontWeight: "800",
+                  fontSize: "3rem",
                 },
                 pricingTableCardFeePeriod: {
-                  color: "rgba(255, 255, 255, 0.8)",
+                  color: "rgba(255, 255, 255, 0.85)",
+                  fontSize: "1.1rem",
                 },
                 pricingTableCard: {
-                  borderRadius: "0.625rem",
-                  border: "1px solid oklch(0.922 0 0)",
-                  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                  borderRadius: "1rem",
+                  border: "2px solid rgb(16 185 129 / 0.2)",
+                  boxShadow: "0 10px 40px rgba(16, 185, 129, 0.15)",
                   transition: "all 0.3s ease",
+                  overflow: "hidden",
+                  background: "rgba(255, 255, 255, 0.9)",
+                  backdropFilter: "blur(10px)",
                 },
                 pricingTableCardBody: {
-                  padding: "2rem",
+                  padding: "2.5rem",
                 },
                 pricingTableCardFeatures: {
-                  marginTop: "1.5rem",
+                  marginTop: "2rem",
+                  gap: "1rem",
                 },
                 pricingTableCardFeature: {
-                  fontSize: "1rem",
-                  padding: "0.5rem 0",
+                  fontSize: "1.05rem",
+                  padding: "0.75rem 0",
+                  fontWeight: "500",
                 },
                 pricingTableCardButton: {
                   marginTop: "2rem",
-                  borderRadius: "0.5rem",
-                  fontWeight: "600",
-                  padding: "0.75rem 2rem",
+                  borderRadius: "0.75rem",
+                  fontWeight: "700",
+                  padding: "1rem 2.5rem",
                   transition: "all 0.2s ease",
+                  fontSize: "1.1rem",
+                  background:
+                    "linear-gradient(135deg, rgb(16 185 129), rgb(45 212 191))",
+                  border: "none",
+                  boxShadow: "0 4px 15px rgba(16, 185, 129, 0.3)",
                 },
               },
             }}
           />
-        </div>
-
-        {/* Benefits Summary */}
-        <div className="max-w-3xl mx-auto mt-16 text-center">
-          <h2 className="text-2xl font-bold mb-6">Why Upgrade?</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="p-6 border rounded-lg">
-              <CheckCircle2 className="h-8 w-8 text-primary mx-auto mb-3" />
-              <h3 className="font-semibold mb-2">More Projects</h3>
-              <p className="text-sm text-muted-foreground">
-                Create up to 30 projects with Pro or unlimited with Ultra
-              </p>
-            </div>
-            <div className="p-6 border rounded-lg">
-              <CheckCircle2 className="h-8 w-8 text-primary mx-auto mb-3" />
-              <h3 className="font-semibold mb-2">Larger Files</h3>
-              <p className="text-sm text-muted-foreground">
-                Upload files up to 200MB (Pro) or 3GB (Ultra)
-              </p>
-            </div>
-            <div className="p-6 border rounded-lg">
-              <CheckCircle2 className="h-8 w-8 text-primary mx-auto mb-3" />
-              <h3 className="font-semibold mb-2">Advanced AI</h3>
-              <p className="text-sm text-muted-foreground">
-                Access social posts, YouTube timestamps, and key moments
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

@@ -3,28 +3,28 @@
 import { FileAudio, Upload } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 
 export function EmptyState() {
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <div className="text-center py-12">
-          <div className="rounded-full bg-primary/10 p-6 w-fit mx-auto mb-4">
-            <FileAudio className="h-12 w-12 text-primary" />
+    <div className="glass-card rounded-3xl p-12 md:p-16 text-center hover-lift">
+      <div className="max-w-md mx-auto">
+        <div className="relative mb-8">
+          <div className="absolute inset-0 gradient-emerald opacity-20 blur-3xl rounded-full"></div>
+          <div className="relative rounded-3xl gradient-emerald p-8 w-fit mx-auto shadow-2xl">
+            <FileAudio className="h-20 w-20 text-white" />
           </div>
-          <h3 className="text-xl font-semibold mb-2">No projects yet</h3>
-          <p className="text-muted-foreground mb-6">
-            Upload your first podcast to get started
-          </p>
-          <Link href="/dashboard/upload">
-            <Button>
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Podcast
-            </Button>
-          </Link>
         </div>
-      </CardContent>
-    </Card>
+        <h3 className="text-3xl font-bold mb-4 text-gray-900">No projects yet</h3>
+        <p className="text-lg text-gray-600 mb-8 leading-relaxed">
+          Upload your first podcast to unlock AI-powered insights, summaries, and social content
+        </p>
+        <Link href="/dashboard/upload">
+          <Button className="gradient-emerald text-white hover-glow shadow-xl px-8 py-6 text-lg">
+            <Upload className="mr-2 h-6 w-6" />
+            Upload Your First Podcast
+          </Button>
+        </Link>
+      </div>
+    </div>
   );
 }

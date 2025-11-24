@@ -1,8 +1,6 @@
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { formatDuration, formatFileSize, formatSmartDate } from "@/lib/format";
-import { getStatusVariant } from "@/lib/status-utils";
+import { Clock, Calendar, FileType, HardDrive } from "lucide-react";
 
 interface ProjectStatusCardProps {
   project: Doc<"projects">;
@@ -10,38 +8,63 @@ interface ProjectStatusCardProps {
 
 export function ProjectStatusCard({ project }: ProjectStatusCardProps) {
   return (
-    <Card>
-      <CardContent className="py-4">
-        <div className="flex items-start gap-4">
-          {/* Project Info */}
-          <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold wrap-break-words mb-1">
-              {project.fileName}
-            </h2>
-            <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
-              <span>{formatSmartDate(project.createdAt)}</span>
-              <span>•</span>
-              <span>{formatFileSize(project.fileSize)}</span>
-              <span>•</span>
-              <span className="uppercase">{project.fileFormat}</span>
-              {project.fileDuration && (
-                <>
-                  <span>•</span>
-                  <span>{formatDuration(project.fileDuration)}</span>
-                </>
-              )}
+    <div className="glass-card-strong rounded-2xl p-8 hover-lift">
+      <div className="flex flex-col md:flex-row md:items-start gap-6">
+        {/* Project Info */}
+        <div className="flex-1 min-w-0">
+          <h2 className="text-2xl font-bold wrap-break-words mb-4 text-gray-900">
+            {project.fileName}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-emerald-100">
+                <Calendar className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-medium">Created</p>
+                <p className="text-sm font-semibold text-gray-900">
+                  {formatSmartDate(project.createdAt)}
+                </p>
+              </div>
             </div>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-emerald-100">
+                <HardDrive className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-medium">File Size</p>
+                <p className="text-sm font-semibold text-gray-900">
+                  {formatFileSize(project.fileSize)}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-emerald-100">
+                <FileType className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-medium">Format</p>
+                <p className="text-sm font-semibold text-gray-900 uppercase">
+                  {project.fileFormat}
+                </p>
+              </div>
+            </div>
+            {project.fileDuration && (
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-emerald-100">
+                  <Clock className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Duration</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {formatDuration(project.fileDuration)}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
-
-          {/* Status Badge */}
-          <Badge
-            variant={getStatusVariant(project.status)}
-            className="shrink-0"
-          >
-            {project.status}
-          </Badge>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
