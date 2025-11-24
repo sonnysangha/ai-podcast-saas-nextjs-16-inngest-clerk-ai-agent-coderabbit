@@ -9,7 +9,7 @@
  *
  * Example: User had Free plan (only Summary), upgrades to Pro.
  * This will generate: Social Posts, Titles, Hashtags all at once.
- * 
+ *
  * Note: Transcription is NOT a feature - it's available to all users.
  */
 
