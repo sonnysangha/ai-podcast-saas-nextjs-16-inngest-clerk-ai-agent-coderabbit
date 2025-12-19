@@ -30,7 +30,7 @@ import type { ReactNode } from "react";
 // Initialize Convex React client with deployment URL
 // This client handles real-time subscriptions and optimistic updates
 const convex = new ConvexReactClient(
-  process.env.NEXT_PUBLIC_CONVEX_URL as string,
+  process.env.NEXT_PUBLIC_CONVEX_URL! as string,
 );
 
 /**
