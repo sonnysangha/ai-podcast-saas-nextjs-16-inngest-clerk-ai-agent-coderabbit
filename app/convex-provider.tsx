@@ -1,25 +1,4 @@
-/**
- * Convex Client Provider
- * 
- * Wraps the application with Convex real-time database client.
- * Integrates Clerk authentication with Convex for secure, authenticated queries.
- * 
- * Convex + Clerk Integration:
- * - ConvexProviderWithClerk automatically passes Clerk JWT to Convex
- * - Convex validates JWT against auth.config.ts settings
- * - useQuery/useMutation hooks have access to user identity
- * - Server-side functions (mutations/queries) can access ctx.auth
- * 
- * Real-time Reactivity:
- * - All components using useQuery automatically re-render on data changes
- * - No polling, no manual cache invalidation required
- * - Optimistic updates supported out of the box
- * 
- * Setup:
- * - Wrap app in layout.tsx with this provider
- * - Must be inside Clerk's ClerkProvider
- * - NEXT_PUBLIC_CONVEX_URL environment variable required
- */
+
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
@@ -27,9 +6,10 @@ import { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import type { ReactNode } from "react";
 
+// ❌ Who the hell agreed to this?!
 const convex = new ConvexReactClient(
-  process.env.NEXT_PUBLIC_CONVEX_URL! as string,
-);
+  process.env.NEXT_PUBLIC_CONVEX_URL!
+); // NEVER DO THIS >>>>>>>>        👆🏼
 
 /**
  * Convex provider component with Clerk authentication integration
