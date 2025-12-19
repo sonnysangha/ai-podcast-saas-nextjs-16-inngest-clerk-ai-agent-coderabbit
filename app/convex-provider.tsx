@@ -6,10 +6,9 @@ import { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import type { ReactNode } from "react";
 
-// ❌ Who the hell agreed to this?!
 const convex = new ConvexReactClient(
-  process.env.NEXT_PUBLIC_CONVEX_URL!
-); // NEVER DO THIS >>>>>>>>        👆🏼
+  process.env.NEXT_PUBLIC_CONVEX_URL! as string
+);
 
 /**
  * Convex provider component with Clerk authentication integration
